@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# OA TD88 - Web chấm công nội bộ
 
-## Getting Started
+Ứng dụng Next.js (App Router) cho chấm công nhân viên theo ngày với phân quyền `SuperAdmin/Admin/Nhân viên`, lưu dữ liệu SQLite qua Prisma.
 
-First, run the development server:
+## Tính năng chính
+- Đăng nhập bằng `username/password` do admin cấp.
+- Nhân viên check-in/check-out, bắt đầu/kết thúc nghỉ giữa ca, xem lịch sử cá nhân.
+- Admin quản lý user, ca làm, gán ca, xem/sửa công, xuất CSV, chốt tháng.
+- SuperAdmin mở khóa tháng đã chốt.
+- Session cookie + CSRF + rate limit login + audit log.
 
+## Stack
+- Next.js 16 + React 19 + TypeScript
+- Prisma 7 + SQLite
+- `better-sqlite3` adapter cho Prisma Client
+
+## Cài đặt
 ```bash
+npm install
+npm run db:setup
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Mở `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Tài khoản mẫu sau khi seed
+- `superadmin` / `123456`
+- `admin` / `123456`
+- `employee` / `123456`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Scripts
+- `npm run dev`: chạy local dev server (tự dùng DB cũ nếu đã có; chỉ khởi tạo DB khi chưa có)
+- `npm run build`: build production
+- `npm run lint`: lint code
+- `npm run db:generate`: generate Prisma Client
+- `npm run db:push`: khởi tạo schema SQLite từ `prisma/schema.prisma` (giữ DB cũ nếu đã tồn tại)
+- `npm run db:seed`: seed dữ liệu mẫu
+- `npm run db:setup`: reset schema + seed dữ liệu mới từ đầu
+- `npm run db:reset`: reset nhanh DB và seed lại
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Cấu trúc thư mục chính
+- `app/`: pages + route handlers API
+- `components/`: UI cho login/employee/admin/superadmin
+- `lib/`: auth, rbac, csrf, rate-limit, business logic chấm công
+- `prisma/`: schema và seed
+- `scripts/db-push.ts`: script apply schema cho SQLite

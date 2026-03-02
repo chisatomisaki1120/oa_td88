@@ -1,0 +1,64 @@
+import { NextRequest } from "next/server";
+import { AttendanceStatus, Role } from "@prisma/client";
+import { z } from "zod";
+import { fail, ok } from "@/lib/api";
+import { validateCsrf } from "@/lib/csrf";
+import { prisma } from "@/lib/prisma";
+import { requireRoleRequest } from "@/lib/rbac";
+import { assertMonthUnlocked, getActiveShiftForUser, recalculateAttendanceDay } from "@/lib/attendance";
+
+const schema = z.object({
+  checkInAt: z.string().datetime().nullable().optional(),
+  checkOutAt: z.string().datetime().nullable().optional(),
+  status: z.nativeEnum(AttendanceStatus).optional(),
+  warningFlagsJson: z.array(z.string()).optional(),
+});
+
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const actor = await requireRoleRequest(request, [Role.ADMIN, Role.SUPER_ADMIN]);
+  if (!actor) return fail("Forbidden", 403);
+  if (!validateCsrf(request)) return fail("Invalid CSRF token", 403);
+
+  const { id } = await params;
+  const payload = schema.safeParse(await request.json().catch(() => null));
+  if (!payload.success) return fail("Invalid payload", 400, payload.error.flatten());
+
+  const existing = await prisma.attendanceDay.findUnique({ where: { id } });
+  if (!existing) return fail("Không tìm thấy bản ghi", 404);
+
+  const unlocked = await assertMonthUnlocked(existing.workDate);
+  if (!unlocked) {
+    return fail("Tháng đã khóa, cần SuperAdmin mở khóa trước khi sửa", 409);
+  }
+
+  const data: Record<string, unknown> = {
+    updatedBy: actor.id,
+  };
+  if (payload.data.checkInAt !== undefined) data.checkInAt = payload.data.checkInAt ? new Date(payload.data.checkInAt) : null;
+  if (payload.data.checkOutAt !== undefined) data.checkOutAt = payload.data.checkOutAt ? new Date(payload.data.checkOutAt) : null;
+  if (payload.data.status !== undefined) data.status = payload.data.status;
+  if (payload.data.warningFlagsJson !== undefined) data.warningFlagsJson = JSON.stringify(payload.data.warningFlagsJson);
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const modified = await tx.attendanceDay.update({
+      where: { id },
+      data,
+    });
+
+    const shift = await getActiveShiftForUser(modified.userId, new Date(`${modified.workDate}T12:00:00.000+07:00`));
+    return recalculateAttendanceDay(tx, modified, shift);
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorUserId: actor.id,
+      action: "UPDATE_ATTENDANCE",
+      entityType: "AttendanceDay",
+      entityId: id,
+      beforeJson: JSON.stringify(existing),
+      afterJson: JSON.stringify(updated),
+    },
+  });
+
+  return ok(updated);
+}

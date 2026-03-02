@@ -1,0 +1,171 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  EMPLOYEE
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  EARLY_LEAVE
+  ABSENT
+  INCOMPLETE
+  OFF
+}
+
+enum BreakType {
+  WC_SMOKE
+  MEAL
+  OTHER
+}
+
+enum WorkMode {
+  ONLINE
+  OFFLINE
+}
+
+model User {
+  id                String                  @id @default(cuid())
+  username          String                  @unique
+  passwordHash      String
+  fullName          String
+  email             String?
+  department        String?
+  workStartTime     String?
+  workEndTime       String?
+  lateGraceMinutes  Int                     @default(5)
+  earlyLeaveGraceMinutes Int                @default(5)
+  breakPolicyJson   String                  @default("{\"wcSmoke\":{\"maxCount\":3,\"maxMinutesEach\":10},\"meal\":{\"maxCount\":2,\"maxMinutesEach\":40}}")
+  workMode          WorkMode                @default(OFFLINE)
+  allowedOffDaysPerMonth Int                @default(2)
+  role              Role                    @default(EMPLOYEE)
+  isActive          Boolean                 @default(true)
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  attendanceDays    AttendanceDay[]
+  shiftAssignments  EmployeeShiftAssignment[]
+  authSessions      AuthSession[]
+  createdClosures   MonthlyClosure[]        @relation("createdClosures")
+  reopenedClosures  MonthlyClosure[]        @relation("reopenedClosures")
+  auditLogs         AuditLog[]
+}
+
+model Shift {
+  id                 String                  @id @default(cuid())
+  name               String
+  startTime          String
+  endTime            String
+  lateGraceMinutes   Int                     @default(5)
+  earlyLeaveGraceMinutes Int                 @default(5)
+  breakPolicyJson    String
+  isActive           Boolean                 @default(true)
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+  assignments        EmployeeShiftAssignment[]
+}
+
+model EmployeeShiftAssignment {
+  id            String   @id @default(cuid())
+  userId        String
+  shiftId       String
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shift         Shift    @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+
+  @@index([userId, effectiveFrom])
+}
+
+model AttendanceDay {
+  id                String            @id @default(cuid())
+  userId            String
+  workDate          String
+  checkInAt         DateTime?
+  checkOutAt        DateTime?
+  status            AttendanceStatus  @default(INCOMPLETE)
+  warningFlagsJson  String            @default("[]")
+  workedMinutes     Int?
+  isOffDay          Boolean           @default(false)
+  offReason         String?
+  isDeducted        Boolean           @default(false)
+  lockedMonth       Boolean           @default(false)
+  createdBy         String?
+  updatedBy         String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  breakSessions     BreakSession[]
+
+  @@unique([userId, workDate])
+  @@index([workDate])
+}
+
+model BreakSession {
+  id                     String    @id @default(cuid())
+  attendanceDayId        String
+  breakType              BreakType
+  startAt                DateTime
+  endAt                  DateTime?
+  durationMinutesComputed Int?
+  createdAt              DateTime  @default(now())
+
+  attendanceDay          AttendanceDay @relation(fields: [attendanceDayId], references: [id], onDelete: Cascade)
+
+  @@index([attendanceDayId, startAt])
+}
+
+model MonthlyClosure {
+  id           String   @id @default(cuid())
+  month        String   @unique
+  closedAt     DateTime
+  closedBy     String
+  reopenedAt   DateTime?
+  reopenedBy   String?
+  note         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  closedByUser   User   @relation("createdClosures", fields: [closedBy], references: [id], onDelete: Cascade)
+  reopenedByUser User?  @relation("reopenedClosures", fields: [reopenedBy], references: [id], onDelete: SetNull)
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorUserId String
+  action     String
+  entityType String
+  entityId   String
+  beforeJson String?
+  afterJson  String?
+  createdAt  DateTime @default(now())
+
+  actor      User     @relation(fields: [actorUserId], references: [id], onDelete: Cascade)
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model AuthSession {
+  id         String   @id @default(cuid())
+  userId     String
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
