@@ -461,6 +461,27 @@ td {
   color: #9a3412;
 }
 
+.risk-chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.risk-chip-ip {
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.risk-chip-device {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.risk-chip-btn {
+  border: 0;
+  cursor: pointer;
+}
+
 .muted-chip {
   background: #f1f5f9;
   color: #64748b;

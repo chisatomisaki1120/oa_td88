@@ -24,6 +24,7 @@ npm run dev
 Mở `http://localhost:3001`.
 
 ## Tài khoản mẫu sau khi seed
+- Chỉ dùng cho môi trường phát triển nội bộ. Đổi mật khẩu ngay khi triển khai thật.
 - `superadmin` / `123456`
 - `admin` / `123456`
 - `employee` / `123456`
@@ -31,6 +32,7 @@ Mở `http://localhost:3001`.
 ## Scripts
 - `npm run dev`: chạy local dev server (tự dùng DB cũ nếu đã có; chỉ khởi tạo DB khi chưa có)
 - `npm run build`: build production
+- `npm run start`: chạy production server (tự dùng DB cũ nếu đã có; chỉ khởi tạo DB khi chưa có)
 - `npm run lint`: lint code
 - `npm run db:generate`: generate Prisma Client
 - `npm run db:push`: khởi tạo schema SQLite từ `prisma/schema.prisma` (giữ DB cũ nếu đã tồn tại)
@@ -38,6 +40,20 @@ Mở `http://localhost:3001`.
 - `npm run db:seed`: seed dữ liệu mẫu
 - `npm run db:setup`: reset schema + seed dữ liệu mới từ đầu
 - `npm run db:reset`: reset nhanh DB và seed lại
+- `npm run db:export:json -- <duong-dan-file.json>`: xuất toàn bộ DB (schema + data) ra JSON
+- `npm run db:import:json -- <duong-dan-file.json>`: nhập DB từ JSON (có tạo backup `.db` trước khi import)
+
+## Backup DB tự động mỗi 15 phút
+- Khi chạy `npm run dev` hoặc `npm run start`, hệ thống tự backup SQLite định kỳ.
+- Mặc định:
+  - Chu kỳ: `15` phút
+  - Thư mục: `backups/auto`
+  - Giữ tối đa: `96` file
+- Có thể chỉnh bằng biến môi trường:
+  - `DB_AUTO_BACKUP_ENABLED=true|false`
+  - `DB_AUTO_BACKUP_INTERVAL_MINUTES=15`
+  - `DB_BACKUP_DIR=backups/auto`
+  - `DB_BACKUP_MAX_FILES=96`
 
 ## Cấu trúc thư mục chính
 - `app/`: pages + route handlers API

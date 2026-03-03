@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import type { Role } from "@prisma/client";
 import { apiJson } from "@/lib/client-api";
 import { roleLabel, workModeLabel } from "@/lib/display-labels";
 
@@ -13,15 +14,33 @@ type User = {
   role: "SUPER_ADMIN" | "ADMIN" | "EMPLOYEE";
   isActive: boolean;
   hasSharedLoginRisk: boolean;
+  hasSharedIpRisk?: boolean;
+  hasSharedDeviceRisk?: boolean;
+  sharedIpConflictAccounts?: number;
+  sharedDeviceConflictAccounts?: number;
   workStartTime: string | null;
   workEndTime: string | null;
   lateGraceMinutes: number;
   earlyLeaveGraceMinutes: number;
   workMode: "ONLINE" | "OFFLINE";
   allowedOffDaysPerMonth: number;
+  sharedLoginConflicts?: Array<{
+    accountId: string;
+    username: string;
+    fullName: string;
+    ipConflictCountToday: number;
+    deviceConflictCount: number;
+    lastConflictAt: string;
+  }>;
 };
 
-export default function AdminUsers() {
+type Props = {
+  actorRole: Role;
+};
+
+export default function AdminUsers({ actorRole }: Props) {
+  const canAssignSuperAdmin = actorRole === "SUPER_ADMIN";
+
   const [rows, setRows] = useState<User[]>([]);
   const [error, setError] = useState("");
   const [form, setForm] = useState({
@@ -38,6 +57,7 @@ export default function AdminUsers() {
     allowedOffDaysPerMonth: 2,
   });
   const [editingId, setEditingId] = useState("");
+  const [selectedRiskUser, setSelectedRiskUser] = useState<User | null>(null);
   const [editForm, setEditForm] = useState({
     fullName: "",
     email: "",
@@ -152,7 +172,7 @@ export default function AdminUsers() {
           <select value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}>
             <option value="EMPLOYEE">Nhân viên</option>
             <option value="ADMIN">Quản trị viên</option>
-            <option value="SUPER_ADMIN">Siêu quản trị</option>
+            {canAssignSuperAdmin && <option value="SUPER_ADMIN">Siêu quản trị</option>}
           </select>
           <input type="time" value={form.workStartTime} onChange={(e) => setForm((f) => ({ ...f, workStartTime: e.target.value }))} />
           <input type="time" value={form.workEndTime} onChange={(e) => setForm((f) => ({ ...f, workEndTime: e.target.value }))} />
@@ -198,7 +218,7 @@ export default function AdminUsers() {
             <select value={editForm.role} onChange={(e) => setEditForm((f) => ({ ...f, role: e.target.value }))}>
               <option value="EMPLOYEE">Nhân viên</option>
               <option value="ADMIN">Quản trị viên</option>
-              <option value="SUPER_ADMIN">Siêu quản trị</option>
+              {canAssignSuperAdmin && <option value="SUPER_ADMIN">Siêu quản trị</option>}
             </select>
             <input type="time" value={editForm.workStartTime} onChange={(e) => setEditForm((f) => ({ ...f, workStartTime: e.target.value }))} />
             <input type="time" value={editForm.workEndTime} onChange={(e) => setEditForm((f) => ({ ...f, workEndTime: e.target.value }))} />
@@ -272,7 +292,22 @@ export default function AdminUsers() {
                   <span className={`status-chip ${u.isActive ? "active" : "inactive"}`}>{u.isActive ? "Đang hoạt động" : "Ngừng hoạt động"}</span>
                 </td>
                 <td>
-                  {u.hasSharedLoginRisk ? <span className="risk-chip">Trùng IP/Thiết bị</span> : <span className="muted-chip">-</span>}
+                  {u.hasSharedLoginRisk ? (
+                    <div className="risk-chip-group">
+                      {u.hasSharedIpRisk && (
+                        <button className="risk-chip risk-chip-ip risk-chip-btn" type="button" onClick={() => setSelectedRiskUser(u)}>
+                          Trùng IP ({u.sharedIpConflictAccounts ?? 0})
+                        </button>
+                      )}
+                      {u.hasSharedDeviceRisk && (
+                        <button className="risk-chip risk-chip-device risk-chip-btn" type="button" onClick={() => setSelectedRiskUser(u)}>
+                          Trùng thiết bị ({u.sharedDeviceConflictAccounts ?? 0})
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="muted-chip">-</span>
+                  )}
                 </td>
                 <td>
                   <div className="actions-col">
@@ -290,6 +325,47 @@ export default function AdminUsers() {
           </table>
         </div>
       </div>
+
+      {selectedRiskUser && (
+        <div className="card">
+          <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+            <h3 style={{ marginTop: 0, marginBottom: 0 }}>
+              Chi tiết cảnh báo đăng nhập: {selectedRiskUser.fullName} ({selectedRiskUser.username})
+            </h3>
+            <button className="secondary" type="button" onClick={() => setSelectedRiskUser(null)}>
+              Đóng
+            </button>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Tài khoản trùng</th>
+                <th>Trùng IP (hôm nay)</th>
+                <th>Trùng thiết bị</th>
+                <th>Lần gần nhất</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(selectedRiskUser.sharedLoginConflicts ?? []).map((conflict) => (
+                <tr key={conflict.accountId}>
+                  <td>{`${conflict.fullName} (${conflict.username})`}</td>
+                  <td>{conflict.ipConflictCountToday}</td>
+                  <td>{conflict.deviceConflictCount}</td>
+                  <td>{new Date(conflict.lastConflictAt).toLocaleString("vi-VN")}</td>
+                </tr>
+              ))}
+              {(selectedRiskUser.sharedLoginConflicts ?? []).length === 0 && (
+                <tr>
+                  <td colSpan={4}>Không có dữ liệu</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+          <p className="small" style={{ marginTop: 8 }}>
+            Trùng IP chỉ tính trong ngày hiện tại (reset khi sang ngày mới). Trùng thiết bị lưu theo lịch sử.
+          </p>
+        </div>
+      )}
     </>
   );
 }

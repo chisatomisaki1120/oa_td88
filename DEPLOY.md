@@ -54,6 +54,10 @@ cat > .env << 'EOF'
 NODE_ENV=production
 PORT=3001
 DATABASE_URL="file:./prisma/dev.db"
+DB_AUTO_BACKUP_ENABLED=true
+DB_AUTO_BACKUP_INTERVAL_MINUTES=15
+DB_BACKUP_DIR=backups/auto
+DB_BACKUP_MAX_FILES=96
 EOF
 ```
 
@@ -159,7 +163,24 @@ sudo journalctl -u nginx -n 200 --no-pager
 sudo nginx -t
 ```
 
-## 12. Bao mat toi thieu khuyen nghi
+## 12. Xuat/Nhap DB JSON
+
+Xuat DB:
+
+```bash
+cd /www/wwwroot/oa_td88
+npm run db:export:json -- backups/json/manual-export.json
+```
+
+Nhap DB (co tao backup `.db` truoc khi import):
+
+```bash
+cd /www/wwwroot/oa_td88
+npm run db:import:json -- backups/json/manual-export.json
+pm2 restart oa-td88
+```
+
+## 13. Bao mat toi thieu khuyen nghi
 
 - Tat SSH password, dung SSH key
 - Bat firewall:

@@ -16,6 +16,11 @@ function hasExistingData(dbFile: string): boolean {
   return tables.length > 0;
 }
 
+function runLoginSecurityUpgrade() {
+  console.log("Applying non-destructive login security upgrade...");
+  execSync("npm run db:upgrade:login-security", { stdio: "inherit" });
+}
+
 const root = process.cwd();
 const databaseUrl = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
 const dbPath = databaseUrl.replace(/^file:/, "");
@@ -23,11 +28,13 @@ const resolvedDbPath = path.isAbsolute(dbPath) ? dbPath : path.join(root, dbPath
 
 if (hasExistingData(resolvedDbPath)) {
   console.log(`Using existing database at ${resolvedDbPath}`);
+  runLoginSecurityUpgrade();
   process.exit(0);
 }
 
 console.log("Database not found or empty. Initializing...");
 execSync("npm run db:generate", { stdio: "inherit" });
 execSync("npm run db:push", { stdio: "inherit" });
+runLoginSecurityUpgrade();
 execSync("npm run db:seed", { stdio: "inherit" });
 console.log("Database ready for development.");

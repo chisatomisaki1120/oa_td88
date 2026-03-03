@@ -6,6 +6,7 @@ import { hashPassword, verifyPassword } from "@/lib/auth";
 import { validateCsrf } from "@/lib/csrf";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/rbac";
+import { sanitizeUserForAudit } from "@/lib/audit";
 
 const updateSchema = z
   .object({
@@ -103,7 +104,7 @@ export async function PATCH(request: NextRequest) {
       action: "UPDATE_SELF_PROFILE",
       entityType: "User",
       entityId: user.id,
-      beforeJson: JSON.stringify(current),
+      beforeJson: JSON.stringify(sanitizeUserForAudit(current)),
       afterJson: JSON.stringify(updated),
     },
   });

@@ -15,6 +15,7 @@ export default async function AccountPage() {
       { href: "/admin/attendance", label: "Chấm công" },
       { href: "/admin/users", label: "Nhân sự" },
       { href: "/admin/shifts", label: "Ca làm" },
+      { href: "/admin/settings", label: "Cài đặt" },
     );
   }
 

@@ -12,6 +12,8 @@ export async function GET(request: NextRequest) {
   const date = searchParams.get("date");
   const department = searchParams.get("department");
   const userId = searchParams.get("userId");
+  const limitRaw = Number(searchParams.get("limit") ?? "200");
+  const take = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.trunc(limitRaw), 1), 500) : 200;
 
   const where: Record<string, unknown> = {};
   if (date) where.workDate = date;
@@ -22,7 +24,17 @@ export async function GET(request: NextRequest) {
       ...where,
       user: department ? { department } : undefined,
     },
-    include: {
+    select: {
+      id: true,
+      workDate: true,
+      status: true,
+      checkInAt: true,
+      checkOutAt: true,
+      workedMinutes: true,
+      isOffDay: true,
+      isDeducted: true,
+      offReason: true,
+      warningFlagsJson: true,
       user: {
         select: {
           id: true,
@@ -31,9 +43,9 @@ export async function GET(request: NextRequest) {
           department: true,
         },
       },
-      breakSessions: true,
     },
     orderBy: [{ workDate: "desc" }, { createdAt: "desc" }],
+    take,
   });
 
   return ok(items);

@@ -42,26 +42,35 @@ export async function getActiveShiftForUser(userId: string, atDate: Date = new D
     };
   }
 
-  const assignments = await prisma.employeeShiftAssignment.findMany({
-    where: { userId },
-    include: { shift: true },
+  const assigned = await prisma.employeeShiftAssignment.findFirst({
+    where: {
+      userId,
+      effectiveFrom: { lte: atDate },
+      OR: [{ effectiveTo: null }, { effectiveTo: { gte: atDate } }],
+      shift: { isActive: true },
+    },
     orderBy: { effectiveFrom: "desc" },
+    select: {
+      shift: {
+        select: {
+          startTime: true,
+          endTime: true,
+          lateGraceMinutes: true,
+          earlyLeaveGraceMinutes: true,
+          breakPolicyJson: true,
+        },
+      },
+    },
   });
-
-  const assigned = assignments.find((a) => {
-    const starts = a.effectiveFrom <= atDate;
-    const ends = !a.effectiveTo || a.effectiveTo >= atDate;
-    return starts && ends && a.shift.isActive;
-  })?.shift;
 
   if (!assigned) return null;
 
   return {
-    startTime: assigned.startTime,
-    endTime: assigned.endTime,
-    lateGraceMinutes: assigned.lateGraceMinutes,
-    earlyLeaveGraceMinutes: assigned.earlyLeaveGraceMinutes,
-    breakPolicyJson: assigned.breakPolicyJson,
+    startTime: assigned.shift.startTime,
+    endTime: assigned.shift.endTime,
+    lateGraceMinutes: assigned.shift.lateGraceMinutes,
+    earlyLeaveGraceMinutes: assigned.shift.earlyLeaveGraceMinutes,
+    breakPolicyJson: assigned.shift.breakPolicyJson,
   };
 }
 

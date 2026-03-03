@@ -138,7 +138,7 @@ export default function AdminAttendance() {
             {rows.map((row) => (
               <tr key={row.id}>
                 <td>{row.workDate}</td>
-                <td>{row.user.fullName}</td>
+                <td>{row.user.username}</td>
                 <td>{row.user.department || "-"}</td>
                 <td>{row.checkInAt ? new Date(row.checkInAt).toLocaleString("vi-VN") : "-"}</td>
                 <td>{row.checkOutAt ? new Date(row.checkOutAt).toLocaleString("vi-VN") : "-"}</td>

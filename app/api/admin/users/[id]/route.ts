@@ -6,6 +6,7 @@ import { hashPassword } from "@/lib/auth";
 import { validateCsrf } from "@/lib/csrf";
 import { prisma } from "@/lib/prisma";
 import { requireRoleRequest } from "@/lib/rbac";
+import { sanitizeUserForAudit } from "@/lib/audit";
 
 const updateSchema = z.object({
   fullName: z.string().min(1).optional(),
@@ -80,7 +81,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       action: "UPDATE_USER",
       entityType: "User",
       entityId: id,
-      beforeJson: JSON.stringify(before),
+      beforeJson: JSON.stringify(sanitizeUserForAudit(before)),
       afterJson: JSON.stringify(updated),
     },
   });
@@ -110,7 +111,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       action: "DELETE_USER",
       entityType: "User",
       entityId: id,
-      beforeJson: JSON.stringify(existing),
+      beforeJson: JSON.stringify(sanitizeUserForAudit(existing)),
     },
   });
 

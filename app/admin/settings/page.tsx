@@ -1,10 +1,11 @@
 import { Role } from "@prisma/client";
 import { redirect } from "next/navigation";
 import DashboardShell from "@/components/dashboard-shell";
-import AdminShifts from "@/components/admin-shifts";
+import AdminSecuritySettings from "@/components/admin-security-settings";
+import AdminDbTools from "@/components/admin-db-tools";
 import { requireRoleServer } from "@/lib/rbac";
 
-export default async function AdminShiftsPage() {
+export default async function AdminSettingsPage() {
   const user = await requireRoleServer([Role.ADMIN, Role.SUPER_ADMIN]);
   if (!user) redirect("/login");
 
@@ -20,7 +21,8 @@ export default async function AdminShiftsPage() {
         { href: "/account", label: "Tài khoản" },
       ]}
     >
-      <AdminShifts />
+      <AdminSecuritySettings />
+      <AdminDbTools />
     </DashboardShell>
   );
 }

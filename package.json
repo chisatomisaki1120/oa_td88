@@ -3,16 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "tsx scripts/db-prepare.ts && next dev",
+    "dev": "tsx scripts/db-prepare.ts && node scripts/next-run-with-env-port.mjs dev",
     "build": "next build",
-    "start": "next start",
+    "start": "tsx scripts/db-prepare.ts && node scripts/next-run-with-env-port.mjs start",
     "lint": "eslint",
     "db:generate": "prisma generate",
     "db:push": "tsx scripts/db-push.ts",
     "db:upgrade:login-security": "tsx scripts/db-upgrade-login-security.ts",
     "db:seed": "tsx prisma/seed.ts",
     "db:setup": "npm run db:generate && npm run db:push -- --force && npm run db:seed",
-    "db:reset": "npm run db:push -- --force && npm run db:seed"
+    "db:reset": "npm run db:push -- --force && npm run db:seed",
+    "db:import:json": "tsx scripts/db-import-json.ts",
+    "db:export:json": "tsx scripts/db-export-json.ts"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.4.2",

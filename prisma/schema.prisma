@@ -32,9 +32,14 @@ enum WorkMode {
   OFFLINE
 }
 
+enum LoginConflictType {
+  IP
+  DEVICE
+}
+
 model User {
   id                String                  @id @default(cuid())
-  username          String
+  username          String                  @unique
   passwordHash      String
   fullName          String
   email             String?
@@ -55,6 +60,8 @@ model User {
   shiftAssignments  EmployeeShiftAssignment[]
   authSessions      AuthSession[]
   loginAccessLogs   LoginAccessLog[]
+  conflictEvents    LoginConflictEvent[]    @relation("userConflictEvents")
+  relatedConflicts  LoginConflictEvent[]    @relation("conflictWithUserEvents")
   createdClosures   MonthlyClosure[]        @relation("createdClosures")
   reopenedClosures  MonthlyClosure[]        @relation("reopenedClosures")
   auditLogs         AuditLog[]
@@ -208,4 +215,22 @@ model LoginSecurityConfig {
   enforceSingleAccountPerDeviceIp Boolean  @default(true)
   blockMobilePhoneLogin           Boolean  @default(true)
   updatedAt                       DateTime @updatedAt
+}
+
+model LoginConflictEvent {
+  id                 String            @id @default(cuid())
+  userId             String
+  conflictWithUserId String
+  conflictType       LoginConflictType
+  ipAddress          String
+  deviceKey          String
+  occurredDate       String
+  occurredAt         DateTime          @default(now())
+
+  user               User              @relation("userConflictEvents", fields: [userId], references: [id], onDelete: Cascade)
+  conflictWithUser   User              @relation("conflictWithUserEvents", fields: [conflictWithUserId], references: [id], onDelete: Cascade)
+
+  @@index([userId, occurredAt])
+  @@index([userId, occurredDate, conflictType])
+  @@index([conflictWithUserId, occurredAt])
 }

@@ -1,7 +1,6 @@
 import { Role } from "@prisma/client";
 import { redirect } from "next/navigation";
 import DashboardShell from "@/components/dashboard-shell";
-import AdminSecuritySettings from "@/components/admin-security-settings";
 import AdminUsers from "@/components/admin-users";
 import { requireRoleServer } from "@/lib/rbac";
 
@@ -17,11 +16,11 @@ export default async function AdminUsersPage() {
         { href: "/admin/attendance", label: "Chấm công" },
         { href: "/admin/users", label: "Nhân sự" },
         { href: "/admin/shifts", label: "Ca làm" },
+        { href: "/admin/settings", label: "Cài đặt" },
         { href: "/account", label: "Tài khoản" },
       ]}
     >
-      <AdminSecuritySettings />
-      <AdminUsers />
+      <AdminUsers actorRole={user.role} />
     </DashboardShell>
   );
 }

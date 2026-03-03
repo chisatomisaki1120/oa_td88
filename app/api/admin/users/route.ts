@@ -6,6 +6,7 @@ import { hashPassword } from "@/lib/auth";
 import { validateCsrf } from "@/lib/csrf";
 import { prisma } from "@/lib/prisma";
 import { requireRoleRequest } from "@/lib/rbac";
+import { vnDateString } from "@/lib/time";
 
 const createSchema = z.object({
   username: z.string().min(3),
@@ -49,7 +50,98 @@ export async function GET(request: NextRequest) {
     orderBy: { createdAt: "desc" },
   });
 
-  return ok(users);
+  const visibleUserIds = users.map((u) => u.id);
+  const todayVn = vnDateString();
+  let conflictEvents: Array<{
+    userId: string;
+    conflictWithUserId: string;
+    conflictType: "IP" | "DEVICE";
+    occurredAt: Date;
+    conflictWithUser: { id: string; username: string; fullName: string };
+  }> = [];
+  try {
+    conflictEvents = await prisma.loginConflictEvent.findMany({
+      where: {
+        userId: { in: visibleUserIds },
+        conflictWithUserId: { in: visibleUserIds },
+        OR: [{ conflictType: "DEVICE" }, { conflictType: "IP", occurredDate: todayVn }],
+      },
+      select: {
+        userId: true,
+        conflictWithUserId: true,
+        conflictType: true,
+        occurredAt: true,
+        conflictWithUser: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+          },
+        },
+      },
+      orderBy: { occurredAt: "desc" },
+    });
+  } catch (error) {
+    const code = (error as { code?: string } | null)?.code;
+    if (code !== "P2021") throw error;
+  }
+
+  const byUser = new Map<
+    string,
+    Map<
+      string,
+      {
+        accountId: string;
+        username: string;
+        fullName: string;
+        ipConflictCountToday: number;
+        deviceConflictCount: number;
+        lastConflictAt: string;
+      }
+    >
+  >();
+
+  for (const event of conflictEvents) {
+    const conflictUser = event.conflictWithUser;
+    const userMap = byUser.get(event.userId) ?? new Map();
+    const existing = userMap.get(conflictUser.id) ?? {
+      accountId: conflictUser.id,
+      username: conflictUser.username,
+      fullName: conflictUser.fullName,
+      ipConflictCountToday: 0,
+      deviceConflictCount: 0,
+      lastConflictAt: event.occurredAt.toISOString(),
+    };
+
+    if (event.conflictType === "IP") existing.ipConflictCountToday += 1;
+    if (event.conflictType === "DEVICE") existing.deviceConflictCount += 1;
+    if (new Date(existing.lastConflictAt) < event.occurredAt) {
+      existing.lastConflictAt = event.occurredAt.toISOString();
+    }
+
+    userMap.set(conflictUser.id, existing);
+    byUser.set(event.userId, userMap);
+  }
+
+  const enrichedUsers = users.map((user) => {
+    const conflictMap = byUser.get(user.id);
+    const sharedLoginConflicts = conflictMap ? [...conflictMap.values()].sort((a, b) => (a.lastConflictAt < b.lastConflictAt ? 1 : -1)) : [];
+    const sharedIpConflictAccounts = sharedLoginConflicts.filter((item) => item.ipConflictCountToday > 0).length;
+    const sharedDeviceConflictAccounts = sharedLoginConflicts.filter((item) => item.deviceConflictCount > 0).length;
+    const hasSharedIpRisk = sharedIpConflictAccounts > 0;
+    const hasSharedDeviceRisk = sharedDeviceConflictAccounts > 0;
+    return {
+      ...user,
+      hasSharedLoginRisk: hasSharedIpRisk || hasSharedDeviceRisk,
+      hasSharedIpRisk,
+      hasSharedDeviceRisk,
+      sharedIpConflictAccounts,
+      sharedDeviceConflictAccounts,
+      sharedLoginConflicts,
+    };
+  });
+
+  return ok(enrichedUsers);
 }
 
 export async function POST(request: NextRequest) {
@@ -59,6 +151,10 @@ export async function POST(request: NextRequest) {
 
   const payload = createSchema.safeParse(await request.json().catch(() => null));
   if (!payload.success) return fail("Invalid payload", 400, payload.error.flatten());
+
+  if (actor.role === Role.ADMIN && payload.data.role === Role.SUPER_ADMIN) {
+    return fail("Quản trị viên không được tạo tài khoản SuperAdmin", 403);
+  }
 
   if (actor.role !== Role.SUPER_ADMIN && payload.data.role === Role.SUPER_ADMIN) {
     return fail("Admin không được tạo SuperAdmin", 403);

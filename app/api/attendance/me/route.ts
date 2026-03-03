@@ -27,8 +27,25 @@ export async function GET(request: NextRequest) {
         lte: to,
       },
     },
-    include: {
+    select: {
+      id: true,
+      workDate: true,
+      status: true,
+      checkInAt: true,
+      checkOutAt: true,
+      workedMinutes: true,
+      isOffDay: true,
+      isDeducted: true,
+      offReason: true,
+      warningFlagsJson: true,
       breakSessions: {
+        select: {
+          id: true,
+          breakType: true,
+          startAt: true,
+          endAt: true,
+          durationMinutesComputed: true,
+        },
         orderBy: { startAt: "asc" },
       },
     },

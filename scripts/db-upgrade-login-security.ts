@@ -26,6 +26,24 @@ function addColumnIfMissing(db: Database.Database, table: string, column: string
   db.exec(`ALTER TABLE "${table}" ADD COLUMN "${column}" ${definition};`);
 }
 
+function hasDuplicateUsername(db: Database.Database): { hasDuplicate: boolean; sample: string } {
+  if (!hasTable(db, "User")) return { hasDuplicate: false, sample: "" };
+  const duplicates = db
+    .prepare(
+      `SELECT username, COUNT(*) as total
+       FROM "User"
+       GROUP BY username
+       HAVING COUNT(*) > 1`,
+    )
+    .all() as Array<{ username: string; total: number }>;
+  if (duplicates.length === 0) return { hasDuplicate: false, sample: "" };
+  const sample = duplicates
+    .slice(0, 10)
+    .map((d) => `${d.username} (${d.total})`)
+    .join(", ");
+  return { hasDuplicate: true, sample };
+}
+
 function main() {
   const resolvedDbPath = resolveDbPath();
   fs.mkdirSync(path.dirname(resolvedDbPath), { recursive: true });
@@ -63,6 +81,18 @@ CREATE TABLE IF NOT EXISTS "LoginSecurityConfig" (
   "blockMobilePhoneLogin" BOOLEAN NOT NULL DEFAULT true,
   "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS "LoginConflictEvent" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "userId" TEXT NOT NULL,
+  "conflictWithUserId" TEXT NOT NULL,
+  "conflictType" TEXT NOT NULL,
+  "ipAddress" TEXT NOT NULL,
+  "deviceKey" TEXT NOT NULL,
+  "occurredDate" TEXT NOT NULL,
+  "occurredAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "LoginConflictEvent_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT "LoginConflictEvent_conflictWithUserId_fkey" FOREIGN KEY ("conflictWithUserId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
 INSERT OR IGNORE INTO "LoginSecurityConfig" ("id", "enforceSingleDevicePerAccount", "enforceSingleAccountPerDeviceIp", "blockMobilePhoneLogin", "updatedAt")
 VALUES (1, true, true, true, CURRENT_TIMESTAMP);
 `);
@@ -77,7 +107,17 @@ VALUES (1, true, true, true, CURRENT_TIMESTAMP);
     db.exec(`CREATE INDEX IF NOT EXISTS "LoginAccessLog_deviceKey_createdAt_idx" ON "LoginAccessLog"("deviceKey", "createdAt");`);
     db.exec(`CREATE INDEX IF NOT EXISTS "LoginAccessLog_success_createdAt_idx" ON "LoginAccessLog"("success", "createdAt");`);
   }
-  db.exec(`DROP INDEX IF EXISTS "User_username_key";`);
+  if (hasTable(db, "LoginConflictEvent")) {
+    db.exec(`CREATE INDEX IF NOT EXISTS "LoginConflictEvent_userId_occurredAt_idx" ON "LoginConflictEvent"("userId", "occurredAt");`);
+    db.exec(`CREATE INDEX IF NOT EXISTS "LoginConflictEvent_userId_occurredDate_conflictType_idx" ON "LoginConflictEvent"("userId", "occurredDate", "conflictType");`);
+    db.exec(`CREATE INDEX IF NOT EXISTS "LoginConflictEvent_conflictWithUserId_occurredAt_idx" ON "LoginConflictEvent"("conflictWithUserId", "occurredAt");`);
+  }
+  const duplicateStatus = hasDuplicateUsername(db);
+  if (duplicateStatus.hasDuplicate) {
+    console.warn(`Skip creating unique index User.username because duplicates exist: ${duplicateStatus.sample}`);
+  } else {
+    db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS "User_username_key" ON "User"("username");`);
+  }
 
   db.close();
   console.log(`Upgraded login security schema at ${resolvedDbPath}`);
