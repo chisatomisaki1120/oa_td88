@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiJson } from "@/lib/client-api";
+import { attendanceStatusLabel } from "@/lib/display-labels";
 
 type Day = {
   id: string;
@@ -49,7 +50,6 @@ export default function EmployeeHistory() {
       <h3 style={{ marginTop: 0 }}>Lịch sử chấm công</h3>
       <div className="row" style={{ marginBottom: 12 }}>
         <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
-        <button onClick={() => load(month)}>Tải dữ liệu</button>
       </div>
       {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
       <table>
@@ -57,8 +57,8 @@ export default function EmployeeHistory() {
           <tr>
             <th>Ngày</th>
             <th>Trạng thái</th>
-            <th>Check-in</th>
-            <th>Check-out</th>
+            <th>Giờ vào</th>
+            <th>Giờ ra</th>
             <th>Giờ công (phút)</th>
             <th>Cảnh báo</th>
           </tr>
@@ -67,7 +67,7 @@ export default function EmployeeHistory() {
           {rows.map((r) => (
             <tr key={r.id}>
               <td>{r.workDate}</td>
-              <td>{r.status}</td>
+              <td>{attendanceStatusLabel(r.status)}</td>
               <td>{r.checkInAt ? new Date(r.checkInAt).toLocaleString("vi-VN") : "-"}</td>
               <td>{r.checkOutAt ? new Date(r.checkOutAt).toLocaleString("vi-VN") : "-"}</td>
               <td>{r.workedMinutes ?? 0}</td>

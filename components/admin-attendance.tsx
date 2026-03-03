@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiJson } from "@/lib/client-api";
+import { attendanceStatusLabel } from "@/lib/display-labels";
 
 type Row = {
   id: string;
@@ -86,9 +87,9 @@ export default function AdminAttendance() {
         <div className="row">
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           <button onClick={load}>Lọc</button>
-          <a href={`/api/admin/attendance/export.csv?month=${date.slice(0, 7)}`}>
+          <a href={`/api/admin/attendance/export.xlsx?month=${date.slice(0, 7)}`}>
             <button type="button" className="secondary">
-              Xuất CSV tổng hợp theo nhân viên
+              Xuất Excel tổng hợp theo nhân viên
             </button>
           </a>
         </div>
@@ -99,9 +100,9 @@ export default function AdminAttendance() {
         <div className="card">
           <h4 style={{ marginTop: 0 }}>Chỉnh công</h4>
           <div className="row">
-            <label>Check-in</label>
+            <label>Giờ vào</label>
             <input type="datetime-local" value={checkInAt} onChange={(e) => setCheckInAt(e.target.value)} />
-            <label>Check-out</label>
+            <label>Giờ ra</label>
             <input type="datetime-local" value={checkOutAt} onChange={(e) => setCheckOutAt(e.target.value)} />
             <button onClick={save}>Lưu</button>
             <button className="secondary" onClick={() => setEditingId("")}>
@@ -119,10 +120,10 @@ export default function AdminAttendance() {
               <th>Nhân viên</th>
               <th>Phòng ban</th>
               <th>Trạng thái</th>
-              <th>Check-in</th>
-              <th>Check-out</th>
+              <th>Giờ vào</th>
+              <th>Giờ ra</th>
               <th>Phút công</th>
-              <th>Off</th>
+              <th>Nghỉ</th>
               <th>Cảnh báo</th>
               <th></th>
             </tr>
@@ -135,7 +136,7 @@ export default function AdminAttendance() {
                   {row.user.fullName} ({row.user.username})
                 </td>
                 <td>{row.user.department || "-"}</td>
-                <td>{row.status}</td>
+                <td>{attendanceStatusLabel(row.status)}</td>
                 <td>{row.checkInAt ? new Date(row.checkInAt).toLocaleString("vi-VN") : "-"}</td>
                 <td>{row.checkOutAt ? new Date(row.checkOutAt).toLocaleString("vi-VN") : "-"}</td>
                 <td>{row.workedMinutes ?? 0}</td>
@@ -143,9 +144,9 @@ export default function AdminAttendance() {
                 <td>{parseWarnings(row.warningFlagsJson).join(", ") || "-"}</td>
                 <td>
                   <button onClick={() => startEdit(row)}>Sửa</button>
-                  <a href={`/api/admin/attendance/export.csv?month=${date.slice(0, 7)}&userId=${row.user.id}`}>
+                  <a href={`/api/admin/attendance/export.xlsx?month=${date.slice(0, 7)}&userId=${row.user.id}`}>
                     <button type="button" className="secondary">
-                      Xuất CSV NV
+                      Xuất Excel NV
                     </button>
                   </a>
                 </td>

@@ -51,7 +51,7 @@ select,
 button,
 textarea {
   font: inherit;
-  padding: 8px 10px;
+  padding: 8px;
   border: 1px solid var(--border);
   border-radius: 8px;
 }
@@ -120,4 +120,361 @@ td {
   td {
     font-size: 12px;
   }
+}
+
+.employee-clock {
+  border-radius: 4px;
+  border-color: #cfd8e3;
+  background: #f8fafc;
+  padding: 8px;
+}
+
+.employee-clock__top {
+  border: 1px solid #d6dde6;
+  background: #f4f4f4;
+  color: #374151;
+  font-weight: 600;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+.employee-clock__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 8px;
+}
+
+.employee-clock__calendar {
+  border: 1px solid #d6dde6;
+  background: #ffffff;
+  padding: 8px;
+}
+
+.employee-clock__month-nav {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.employee-clock__month-nav strong {
+  min-width: 88px;
+  text-align: center;
+}
+
+.employee-clock__month-nav button {
+  width: 28px;
+  height: 28px;
+  line-height: 1;
+  padding: 0;
+  border-radius: 4px;
+}
+
+.employee-clock__table {
+  table-layout: fixed;
+}
+
+.employee-clock__table thead th {
+  background: #2d75ae;
+  color: #ffffff;
+  font-size: 12px;
+  text-align: center;
+  padding: 4px;
+  border-bottom: none;
+}
+
+.employee-clock__cell {
+  height: 84px;
+  vertical-align: top;
+  border: 1px solid #e2e8f0;
+  padding: 0;
+  cursor: pointer;
+  position: relative;
+  background: #fff;
+}
+
+.employee-clock__cell:hover {
+  background: #f8fbff;
+}
+
+.employee-clock__cell--empty {
+  background: #fbfdff;
+  cursor: default;
+}
+
+.employee-clock__cell-strip {
+  background: #d8ecfb;
+  height: 12px;
+}
+
+.employee-clock__cell-day {
+  position: absolute;
+  right: 6px;
+  top: 2px;
+  font-size: 12px;
+  color: #2f4a62;
+  font-weight: 600;
+}
+
+.employee-clock__cell-content {
+  padding: 14px 6px 4px;
+  font-size: 11px;
+  color: #334155;
+}
+
+.employee-clock__cell-content p {
+  margin: 0 0 2px;
+}
+
+.employee-clock__status {
+  font-weight: 700;
+  color: #1e3a8a;
+}
+
+.employee-clock__cell.is-selected {
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+}
+
+.employee-clock__cell.is-today {
+  background: #fefce8;
+}
+
+.employee-clock__cell.is-off-selected {
+  box-shadow: inset 0 0 0 2px #16a34a;
+}
+
+.employee-clock__side {
+  border: 1px solid #d6dde6;
+  background: #fff;
+}
+
+.employee-clock__panel-header {
+  background: #bfe0f8;
+  color: #1f3f5d;
+  text-align: center;
+  font-weight: 700;
+  padding: 10px 8px;
+  border-bottom: 1px solid #d6dde6;
+}
+
+.employee-clock__panel {
+  border-bottom: 1px solid #e5edf6;
+  padding: 10px;
+}
+
+.employee-clock__panel:last-child {
+  border-bottom: none;
+}
+
+.employee-clock__panel h4 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  color: #23384e;
+}
+
+.employee-clock__action-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.employee-clock__action-row button,
+.employee-clock__panel-actions button,
+.employee-clock__break-row button {
+  border-radius: 3px;
+  padding: 6px 10px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.employee-clock__note-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.employee-clock__note-row label {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.employee-clock__note-row select {
+  width: 100%;
+}
+
+.employee-clock__panel textarea {
+  width: 100%;
+  border-radius: 3px;
+  min-height: 90px;
+  margin-bottom: 8px;
+  resize: vertical;
+}
+
+.employee-clock__panel-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.employee-clock__break-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.employee-clock__break-row select {
+  width: 100%;
+}
+
+.employee-clock__legend {
+  margin-top: 8px;
+  border: 1px solid #d6dde6;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+}
+
+.employee-clock__legend span {
+  font-weight: 700;
+  text-align: center;
+  padding: 6px;
+  border-right: 1px solid #d6dde6;
+  font-size: 13px;
+}
+
+.employee-clock__legend span:last-child {
+  border-right: none;
+}
+
+.employee-clock__legend .late {
+  background: #ffc8d0;
+}
+
+.employee-clock__legend .leave {
+  background: #b9f6a5;
+}
+
+.employee-clock__legend .miss {
+  background: #e0c9ff;
+}
+
+.employee-clock__legend .extra {
+  background: #9cb5ff;
+}
+
+.employee-clock__legend .off {
+  background: #c6f3f1;
+}
+
+.employee-clock__legend .today {
+  background: #fff4b8;
+}
+
+.employee-clock__help {
+  border: 1px solid #d6dde6;
+  border-top: none;
+  background: #fff;
+  padding: 8px;
+  color: #315476;
+  font-size: 12px;
+}
+
+.employee-clock__help p {
+  margin: 4px 0;
+}
+
+@media (max-width: 980px) {
+  .employee-clock__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .employee-clock__legend {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.admin-users-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #dbe3ef;
+  border-radius: 10px;
+}
+
+.admin-users-table {
+  min-width: 980px;
+}
+
+.admin-users-table thead th {
+  background: #f3f7fb;
+  color: #1f2a37;
+  font-weight: 700;
+  font-size: 13px;
+  border-bottom: 1px solid #dbe3ef;
+  padding: 10px 12px;
+}
+
+.admin-users-table td {
+  padding: 12px;
+  border-bottom: 1px solid #e6edf5;
+  vertical-align: middle;
+}
+
+.admin-users-table tbody tr:nth-child(even) {
+  background: #fcfdff;
+}
+
+.admin-users-table tbody tr:hover {
+  background: #f6fbff;
+}
+
+.employee-name-cell {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.status-chip,
+.risk-chip,
+.muted-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-chip.active {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-chip.inactive {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.risk-chip {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.muted-chip {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.actions-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.actions-col .edit-btn,
+.actions-col .delete-btn {
+  min-width: 68px;
+  justify-content: center;
 }

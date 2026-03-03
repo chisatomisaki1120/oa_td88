@@ -84,3 +84,32 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   return ok(updated);
 }
+
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const actor = await requireRoleRequest(request, [Role.ADMIN, Role.SUPER_ADMIN]);
+  if (!actor) return fail("Forbidden", 403);
+  if (!validateCsrf(request)) return fail("Invalid CSRF token", 403);
+
+  const { id } = await params;
+  if (id === actor.id) return fail("Không thể tự xóa tài khoản đang đăng nhập", 409);
+
+  const existing = await prisma.user.findUnique({ where: { id } });
+  if (!existing) return fail("Không tìm thấy user", 404);
+  if (actor.role !== Role.SUPER_ADMIN && existing.role === Role.SUPER_ADMIN) {
+    return fail("Admin không được xóa SuperAdmin", 403);
+  }
+
+  await prisma.user.delete({ where: { id } });
+
+  await prisma.auditLog.create({
+    data: {
+      actorUserId: actor.id,
+      action: "DELETE_USER",
+      entityType: "User",
+      entityId: id,
+      beforeJson: JSON.stringify(existing),
+    },
+  });
+
+  return ok({ deleted: true });
+}

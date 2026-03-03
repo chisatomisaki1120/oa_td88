@@ -1,0 +1,139 @@
+import { NextRequest } from "next/server";
+import { z } from "zod";
+import { AttendanceStatus } from "@prisma/client";
+import { fail, ok } from "@/lib/api";
+import { getSessionUserFromRequest } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { validateCsrf } from "@/lib/csrf";
+
+const schema = z.object({
+  dates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).min(1).max(62),
+  reason: z.string().max(300).optional(),
+});
+
+type OffDayBulkResult = {
+  updatedDates: string[];
+  skippedLockedMonth: string[];
+  skippedAlreadyAttended: string[];
+  skippedAlreadyOff: string[];
+};
+
+export async function POST(request: NextRequest) {
+  if (!validateCsrf(request)) return fail("Invalid CSRF token", 403);
+  const user = await getSessionUserFromRequest(request);
+  if (!user) return fail("Unauthorized", 401);
+
+  const payload = schema.safeParse(await request.json().catch(() => null));
+  if (!payload.success) return fail("Invalid payload", 400, payload.error.flatten());
+
+  const uniqueDates = Array.from(new Set(payload.data.dates)).sort();
+  const reason = payload.data.reason ?? null;
+
+  const result = await prisma.$transaction(async (tx): Promise<OffDayBulkResult | "USER_NOT_FOUND"> => {
+    const me = await tx.user.findUnique({
+      where: { id: user.id },
+      select: { allowedOffDaysPerMonth: true },
+    });
+    if (!me) return "USER_NOT_FOUND";
+
+    const allMonths = Array.from(new Set(uniqueDates.map((d) => d.slice(0, 7))));
+    const closures = await tx.monthlyClosure.findMany({
+      where: { month: { in: allMonths } },
+      select: { month: true, reopenedAt: true },
+    });
+    const lockedMonths = new Set(closures.filter((c) => !c.reopenedAt).map((c) => c.month));
+
+    const existingDays = await tx.attendanceDay.findMany({
+      where: {
+        userId: user.id,
+        workDate: { in: uniqueDates },
+      },
+      select: { id: true, workDate: true, checkInAt: true, checkOutAt: true, isOffDay: true },
+    });
+    const dayMap = new Map(existingDays.map((d) => [d.workDate, d]));
+
+    const skippedLockedMonth: string[] = [];
+    const skippedAlreadyAttended: string[] = [];
+    const skippedAlreadyOff: string[] = [];
+    const candidates: string[] = [];
+
+    for (const workDate of uniqueDates) {
+      if (lockedMonths.has(workDate.slice(0, 7))) {
+        skippedLockedMonth.push(workDate);
+        continue;
+      }
+      const existing = dayMap.get(workDate);
+      if (existing?.checkInAt || existing?.checkOutAt) {
+        skippedAlreadyAttended.push(workDate);
+        continue;
+      }
+      if (existing?.isOffDay) {
+        skippedAlreadyOff.push(workDate);
+        continue;
+      }
+      candidates.push(workDate);
+    }
+
+    const byMonth = new Map<string, string[]>();
+    for (const d of candidates) {
+      const m = d.slice(0, 7);
+      byMonth.set(m, [...(byMonth.get(m) ?? []), d]);
+    }
+
+    const updatedDates: string[] = [];
+
+    for (const [month, datesInMonth] of byMonth) {
+      const usedOff = await tx.attendanceDay.count({
+        where: {
+          userId: user.id,
+          workDate: { gte: `${month}-01`, lte: `${month}-31` },
+          isOffDay: true,
+        },
+      });
+
+      let runningUsed = usedOff;
+      for (const workDate of datesInMonth.sort()) {
+        runningUsed += 1;
+        const isDeducted = runningUsed > me.allowedOffDaysPerMonth;
+        const existing = dayMap.get(workDate);
+
+        const data = {
+          isOffDay: true,
+          isDeducted,
+          offReason: reason,
+          status: AttendanceStatus.OFF,
+          workedMinutes: 0,
+          warningFlagsJson: JSON.stringify(isDeducted ? ["OFF_DAY_DEDUCTED"] : ["OFF_DAY_ALLOWED"]),
+          updatedBy: user.id,
+        };
+
+        if (existing) {
+          await tx.attendanceDay.update({
+            where: { id: existing.id },
+            data,
+          });
+        } else {
+          await tx.attendanceDay.create({
+            data: {
+              userId: user.id,
+              workDate,
+              createdBy: user.id,
+              ...data,
+            },
+          });
+        }
+        updatedDates.push(workDate);
+      }
+    }
+
+    return {
+      updatedDates,
+      skippedLockedMonth,
+      skippedAlreadyAttended,
+      skippedAlreadyOff,
+    };
+  });
+
+  if (result === "USER_NOT_FOUND") return fail("Không tìm thấy tài khoản", 404);
+  return ok(result);
+}

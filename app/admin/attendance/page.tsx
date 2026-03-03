@@ -16,8 +16,6 @@ export default async function AdminAttendancePage() {
         { href: "/admin/attendance", label: "Chấm công" },
         { href: "/admin/users", label: "Nhân sự" },
         { href: "/admin/shifts", label: "Ca làm" },
-        { href: "/admin/closure", label: "Chốt tháng" },
-        ...(user.role === "SUPER_ADMIN" ? [{ href: "/superadmin/closure", label: "Mở khóa tháng" }] : []),
         { href: "/account", label: "Tài khoản" },
       ]}
     >

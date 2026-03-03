@@ -28,7 +28,15 @@ export async function verifyPassword(password: string, passwordHash: string): Pr
   return bcrypt.compare(password, passwordHash);
 }
 
-export async function createSession(userId: string): Promise<string> {
+type SessionMeta = {
+  ipAddress: string;
+  userAgent: string | null;
+  deviceKey: string;
+  isSharedIp?: boolean;
+  isSharedDevice?: boolean;
+};
+
+export async function createSession(userId: string, meta: SessionMeta): Promise<string> {
   const rawToken = randomBytes(32).toString("hex");
   const tokenHash = hashToken(rawToken);
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
@@ -36,6 +44,11 @@ export async function createSession(userId: string): Promise<string> {
     data: {
       userId,
       tokenHash,
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent,
+      deviceKey: meta.deviceKey,
+      isSharedIp: Boolean(meta.isSharedIp),
+      isSharedDevice: Boolean(meta.isSharedDevice),
       expiresAt,
     },
   });

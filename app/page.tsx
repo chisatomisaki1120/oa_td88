@@ -11,5 +11,5 @@ export default async function Home() {
   if (user.role === "ADMIN") {
     redirect("/admin/attendance");
   }
-  redirect("/superadmin/closure");
+  redirect("/admin/attendance");
 }

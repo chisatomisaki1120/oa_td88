@@ -48,11 +48,13 @@ model User {
   allowedOffDaysPerMonth Int                @default(2)
   role              Role                    @default(EMPLOYEE)
   isActive          Boolean                 @default(true)
+  hasSharedLoginRisk Boolean                @default(false)
   createdAt         DateTime                @default(now())
   updatedAt         DateTime                @updatedAt
   attendanceDays    AttendanceDay[]
   shiftAssignments  EmployeeShiftAssignment[]
   authSessions      AuthSession[]
+  loginAccessLogs   LoginAccessLog[]
   createdClosures   MonthlyClosure[]        @relation("createdClosures")
   reopenedClosures  MonthlyClosure[]        @relation("reopenedClosures")
   auditLogs         AuditLog[]
@@ -161,11 +163,49 @@ model AuthSession {
   id         String   @id @default(cuid())
   userId     String
   tokenHash  String   @unique
+  ipAddress  String
+  userAgent  String?
+  deviceKey  String
+  isSharedIp Boolean  @default(false)
+  isSharedDevice Boolean @default(false)
   expiresAt  DateTime
+  lastSeenAt DateTime @default(now())
   createdAt  DateTime @default(now())
 
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([deviceKey])
+  @@index([ipAddress])
   @@index([expiresAt])
+}
+
+model LoginAccessLog {
+  id             String   @id @default(cuid())
+  userId         String?
+  usernameInput  String
+  ipAddress      String
+  userAgent      String?
+  deviceKey      String
+  success        Boolean
+  blockedReason  String?
+  failedReason   String?
+  isSharedIp     Boolean  @default(false)
+  isSharedDevice Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  user           User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([ipAddress, createdAt])
+  @@index([deviceKey, createdAt])
+  @@index([success, createdAt])
+}
+
+model LoginSecurityConfig {
+  id                              Int      @id
+  enforceSingleDevicePerAccount   Boolean  @default(true)
+  enforceSingleAccountPerDeviceIp Boolean  @default(true)
+  blockMobilePhoneLogin           Boolean  @default(true)
+  updatedAt                       DateTime @updatedAt
 }

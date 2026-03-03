@@ -5,7 +5,7 @@
 ## Tính năng chính
 - Đăng nhập bằng `username/password` do admin cấp.
 - Nhân viên check-in/check-out, bắt đầu/kết thúc nghỉ giữa ca, xem lịch sử cá nhân.
-- Admin quản lý user, ca làm, gán ca, xem/sửa công, xuất CSV, chốt tháng.
+- Admin quản lý user, ca làm, gán ca, xem/sửa công, xuất Excel (.xlsx), chốt tháng.
 - SuperAdmin mở khóa tháng đã chốt.
 - Session cookie + CSRF + rate limit login + audit log.
 
@@ -34,6 +34,7 @@ Mở `http://localhost:3000`.
 - `npm run lint`: lint code
 - `npm run db:generate`: generate Prisma Client
 - `npm run db:push`: khởi tạo schema SQLite từ `prisma/schema.prisma` (giữ DB cũ nếu đã tồn tại)
+- `npm run db:upgrade:login-security`: nâng cấp DB hiện có cho tính năng bảo mật đăng nhập mới (không mất dữ liệu)
 - `npm run db:seed`: seed dữ liệu mẫu
 - `npm run db:setup`: reset schema + seed dữ liệu mới từ đầu
 - `npm run db:reset`: reset nhanh DB và seed lại

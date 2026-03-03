@@ -23,8 +23,7 @@ export default function LoginForm() {
       .then((data) => {
         if (!data.user) return;
         if (data.user.role === "EMPLOYEE") router.replace("/employee/today");
-        else if (data.user.role === "ADMIN") router.replace("/admin/attendance");
-        else router.replace("/superadmin/closure");
+        else router.replace("/admin/attendance");
       })
       .catch(() => undefined);
   }, [router]);
@@ -40,8 +39,7 @@ export default function LoginForm() {
       });
       const me = await apiJson<SessionMe>("/api/auth/me");
       if (me.user?.role === "EMPLOYEE") router.push("/employee/today");
-      else if (me.user?.role === "ADMIN") router.push("/admin/attendance");
-      else router.push("/superadmin/closure");
+      else router.push("/admin/attendance");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Đăng nhập thất bại");

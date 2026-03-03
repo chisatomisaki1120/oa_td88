@@ -9,6 +9,7 @@
     "lint": "eslint",
     "db:generate": "prisma generate",
     "db:push": "tsx scripts/db-push.ts",
+    "db:upgrade:login-security": "tsx scripts/db-upgrade-login-security.ts",
     "db:seed": "tsx prisma/seed.ts",
     "db:setup": "npm run db:generate && npm run db:push -- --force && npm run db:seed",
     "db:reset": "npm run db:push -- --force && npm run db:seed"
@@ -23,6 +24,7 @@
     "prisma": "^7.4.2",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "xlsx": "^0.18.5",
     "zod": "^4.3.6"
   },
   "devDependencies": {

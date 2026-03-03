@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { apiJson } from "@/lib/client-api";
+import { roleLabel } from "@/lib/display-labels";
 
 type Profile = {
   id: string;
@@ -80,13 +81,13 @@ export default function AccountProfile() {
       <form onSubmit={saveProfile}>
         <div className="row" style={{ marginBottom: 10 }}>
           <input value={profile.username} disabled />
-          <input value={profile.role} disabled />
+          <input value={roleLabel(profile.role)} disabled />
           <select
             value={profile.workMode}
             onChange={(e) => setProfile((p) => (p ? { ...p, workMode: e.target.value as "ONLINE" | "OFFLINE" } : p))}
           >
-            <option value="OFFLINE">Làm việc Offline</option>
-            <option value="ONLINE">Làm việc Online</option>
+            <option value="OFFLINE">Offline</option>
+            <option value="ONLINE">Online</option>
           </select>
         </div>
         <div className="row" style={{ marginBottom: 10 }}>
@@ -97,14 +98,9 @@ export default function AccountProfile() {
             required
           />
           <input
-            value={profile.email ?? ""}
-            onChange={(e) => setProfile((p) => (p ? { ...p, email: e.target.value } : p))}
-            placeholder="Email"
-          />
-          <input
             value={profile.department ?? ""}
             onChange={(e) => setProfile((p) => (p ? { ...p, department: e.target.value } : p))}
-            placeholder="Phòng ban"
+            placeholder="Chức vụ"
           />
         </div>
         <div className="row" style={{ marginBottom: 10 }}>
@@ -123,16 +119,15 @@ export default function AccountProfile() {
             value={profile.lateGraceMinutes}
             onChange={(e) => setProfile((p) => (p ? { ...p, lateGraceMinutes: Number(e.target.value) } : p))}
             style={{ width: 90 }}
-            placeholder="Grace vào"
+            placeholder="Phút trễ cho phép"
           />
           <input
             type="number"
             value={profile.earlyLeaveGraceMinutes}
             onChange={(e) => setProfile((p) => (p ? { ...p, earlyLeaveGraceMinutes: Number(e.target.value) } : p))}
             style={{ width: 90 }}
-            placeholder="Grace ra"
+            placeholder="Phút về sớm cho phép"
           />
-          <span className="badge">Off được phép/tháng: {profile.allowedOffDaysPerMonth}</span>
         </div>
         <div className="row" style={{ marginBottom: 10 }}>
           <input

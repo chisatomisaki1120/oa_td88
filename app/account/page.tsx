@@ -15,11 +15,7 @@ export default async function AccountPage() {
       { href: "/admin/attendance", label: "Chấm công" },
       { href: "/admin/users", label: "Nhân sự" },
       { href: "/admin/shifts", label: "Ca làm" },
-      { href: "/admin/closure", label: "Chốt tháng" },
     );
-    if (user.role === "SUPER_ADMIN") {
-      links.push({ href: "/superadmin/closure", label: "Mở khóa tháng" });
-    }
   }
 
   return (

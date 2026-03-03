@@ -1,5 +1,6 @@
 import Link from "next/link";
 import LogoutButton from "@/components/logout-button";
+import { roleLabel } from "@/lib/display-labels";
 
 type Props = {
   fullName: string;
@@ -15,7 +16,7 @@ export default function DashboardShell({ fullName, role, links, children }: Reac
           <div>
             <h2 style={{ margin: 0 }}>OA TD88 - Chấm công</h2>
             <p className="small" style={{ margin: "4px 0 0" }}>
-              {fullName} ({role})
+              {fullName} ({roleLabel(role)})
             </p>
           </div>
           <LogoutButton />

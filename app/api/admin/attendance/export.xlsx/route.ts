@@ -1,20 +1,18 @@
 import { NextRequest } from "next/server";
+import * as XLSX from "xlsx";
 import { Role } from "@prisma/client";
 import { fail } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { requireRoleRequest } from "@/lib/rbac";
 
 type EmployeeSummary = {
-  username: string;
-  fullName: string;
+  employeeName: string;
   department: string;
   allowedOffDaysPerMonth: number;
   totalDays: number;
-  totalWorkedMinutes: number;
   lateCount: number;
   breakExceededCount: number;
   offDayCount: number;
-  deductedOffDayCount: number;
 };
 
 function parseWarnings(raw: string): string[] {
@@ -58,20 +56,16 @@ export async function GET(request: NextRequest) {
     const current =
       summaryByUser.get(key) ??
       ({
-        username: row.user.username,
-        fullName: row.user.fullName,
+        employeeName: `${row.user.fullName} (${row.user.username})`,
         department: row.user.department ?? "",
         allowedOffDaysPerMonth: row.user.allowedOffDaysPerMonth,
         totalDays: 0,
-        totalWorkedMinutes: 0,
         lateCount: 0,
         breakExceededCount: 0,
         offDayCount: 0,
-        deductedOffDayCount: 0,
       } satisfies EmployeeSummary);
 
     current.totalDays += 1;
-    current.totalWorkedMinutes += row.workedMinutes ?? 0;
 
     const warnings = parseWarnings(row.warningFlagsJson);
     const hasBreakExceeded = warnings.some((w) => w.endsWith("_EXCEEDED"));
@@ -84,54 +78,46 @@ export async function GET(request: NextRequest) {
     }
     if (row.isOffDay) {
       current.offDayCount += 1;
-      if (row.isDeducted) current.deductedOffDayCount += 1;
     }
 
     summaryByUser.set(key, current);
   }
 
   const summaries = [...summaryByUser.values()];
-
-  const header = [
-    "month",
-    "username",
-    "fullName",
-    "department",
-    "totalDays",
-    "totalWorkedMinutes",
-    "lateCount",
-    "breakExceededCount",
-    "allowedOffDaysPerMonth",
-    "offDayCount",
-    "deductedOffDayCount",
+  const sheetRows = [
+    [
+      "Tháng",
+      "Tên Nhân Viên",
+      "Chức vụ",
+      "Số ngày công",
+      "Số lần đi muộn",
+      "Số lần quá giờ nghỉ",
+      "Số ngày phép",
+      "Số ngày nghỉ",
+    ],
+    ...summaries.map((s) => [
+      month,
+      s.employeeName,
+      s.department,
+      s.totalDays,
+      s.lateCount,
+      s.breakExceededCount,
+      s.allowedOffDaysPerMonth,
+      s.offDayCount,
+    ]),
   ];
 
-  const csv = [
-    header.join(","),
-    ...summaries.map((s) =>
-      [
-        month,
-        s.username,
-        s.fullName,
-        s.department,
-        s.totalDays,
-        s.totalWorkedMinutes,
-        s.lateCount,
-        s.breakExceededCount,
-        s.allowedOffDaysPerMonth,
-        s.offDayCount,
-        s.deductedOffDayCount,
-      ]
-        .map((v) => `"${String(v).replaceAll("\"", "\"\"")}"`)
-        .join(","),
-    ),
-  ].join("\n");
+  const workbook = XLSX.utils.book_new();
+  const worksheet = XLSX.utils.aoa_to_sheet(sheetRows);
+  worksheet["!cols"] = [{ wch: 12 }, { wch: 34 }, { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 24 }, { wch: 28 }, { wch: 14 }];
+  XLSX.utils.book_append_sheet(workbook, worksheet, "TongHopChamCong");
 
-  return new Response(csv, {
+  const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+  return new Response(buffer, {
     status: 200,
     headers: {
-      "content-type": "text/csv; charset=utf-8",
-      "content-disposition": `attachment; filename="attendance-summary-by-employee-${month}.csv"`,
+      "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "content-disposition": `attachment; filename="tong-hop-cham-cong-theo-nhan-vien-${month}.xlsx"`,
     },
   });
 }
