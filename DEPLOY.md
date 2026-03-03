@@ -52,7 +52,7 @@ Tao `.env` trong thu muc project:
 cd /www/wwwroot/oa_td88
 cat > .env << 'EOF'
 NODE_ENV=production
-PORT=3000
+PORT=3001
 DATABASE_URL="file:./prisma/dev.db"
 EOF
 ```
@@ -86,7 +86,7 @@ Kiem tra:
 ```bash
 pm2 status
 pm2 logs oa-td88
-curl http://127.0.0.1:3000
+curl http://127.0.0.1:3001
 ```
 
 ## 8. Cau hinh Nginx reverse proxy
@@ -99,7 +99,7 @@ server {
     server_name chamcong.example.com;
 
     location / {
-        proxy_pass http://127.0.0.1:3000;
+        proxy_pass http://127.0.0.1:3001;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";

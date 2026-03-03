@@ -35,15 +35,16 @@ async function main() {
   });
 
   const users = [
-    { username: "superadmin", fullName: "Super Admin", role: Role.SUPER_ADMIN, department: "IT" },
-    { username: "admin", fullName: "Admin", role: Role.ADMIN, department: "HR" },
-    { username: "employee", fullName: "Nhân viên mẫu", role: Role.EMPLOYEE, department: "Ops" },
+    { id: "seed-superadmin", username: "superadmin", fullName: "Super Admin", role: Role.SUPER_ADMIN, department: "IT" },
+    { id: "seed-admin", username: "admin", fullName: "Admin", role: Role.ADMIN, department: "HR" },
+    { id: "seed-employee", username: "employee", fullName: "Nhân viên mẫu", role: Role.EMPLOYEE, department: "Ops" },
   ];
 
   for (const u of users) {
     const user = await prisma.user.upsert({
-      where: { username: u.username },
+      where: { id: u.id },
       update: {
+        username: u.username,
         passwordHash,
         fullName: u.fullName,
         role: u.role,
@@ -60,6 +61,7 @@ async function main() {
         isActive: true,
       },
       create: {
+        id: u.id,
         username: u.username,
         passwordHash,
         fullName: u.fullName,

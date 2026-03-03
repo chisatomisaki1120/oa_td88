@@ -49,6 +49,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   const before = await prisma.user.findUnique({ where: { id } });
   if (!before) return fail("Không tìm thấy user", 404);
+  if (actor.role !== Role.SUPER_ADMIN && before.role === Role.SUPER_ADMIN) {
+    return fail("Admin không được sửa tài khoản SuperAdmin", 403);
+  }
 
   const updated = await prisma.user.update({
     where: { id },

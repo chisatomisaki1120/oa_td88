@@ -114,9 +114,6 @@ CREATE TABLE "AuthSession" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "User_username_key" ON "User"("username");
-
--- CreateIndex
 CREATE INDEX "EmployeeShiftAssignment_userId_effectiveFrom_idx" ON "EmployeeShiftAssignment"("userId", "effectiveFrom");
 
 -- CreateIndex

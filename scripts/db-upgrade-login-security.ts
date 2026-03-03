@@ -10,11 +10,18 @@ function resolveDbPath() {
 }
 
 function hasColumn(db: Database.Database, table: string, column: string): boolean {
+  if (!hasTable(db, table)) return false;
   const columns = db.prepare(`PRAGMA table_info("${table}")`).all() as Array<{ name: string }>;
   return columns.some((c) => c.name === column);
 }
 
+function hasTable(db: Database.Database, table: string): boolean {
+  const row = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`).get(table);
+  return Boolean(row);
+}
+
 function addColumnIfMissing(db: Database.Database, table: string, column: string, definition: string) {
+  if (!hasTable(db, table)) return;
   if (hasColumn(db, table, column)) return;
   db.exec(`ALTER TABLE "${table}" ADD COLUMN "${column}" ${definition};`);
 }
@@ -56,15 +63,21 @@ CREATE TABLE IF NOT EXISTS "LoginSecurityConfig" (
   "blockMobilePhoneLogin" BOOLEAN NOT NULL DEFAULT true,
   "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX IF NOT EXISTS "AuthSession_deviceKey_idx" ON "AuthSession"("deviceKey");
-CREATE INDEX IF NOT EXISTS "AuthSession_ipAddress_idx" ON "AuthSession"("ipAddress");
-CREATE INDEX IF NOT EXISTS "LoginAccessLog_userId_idx" ON "LoginAccessLog"("userId");
-CREATE INDEX IF NOT EXISTS "LoginAccessLog_ipAddress_createdAt_idx" ON "LoginAccessLog"("ipAddress", "createdAt");
-CREATE INDEX IF NOT EXISTS "LoginAccessLog_deviceKey_createdAt_idx" ON "LoginAccessLog"("deviceKey", "createdAt");
-CREATE INDEX IF NOT EXISTS "LoginAccessLog_success_createdAt_idx" ON "LoginAccessLog"("success", "createdAt");
 INSERT OR IGNORE INTO "LoginSecurityConfig" ("id", "enforceSingleDevicePerAccount", "enforceSingleAccountPerDeviceIp", "blockMobilePhoneLogin", "updatedAt")
 VALUES (1, true, true, true, CURRENT_TIMESTAMP);
 `);
+
+  if (hasTable(db, "AuthSession")) {
+    db.exec(`CREATE INDEX IF NOT EXISTS "AuthSession_deviceKey_idx" ON "AuthSession"("deviceKey");`);
+    db.exec(`CREATE INDEX IF NOT EXISTS "AuthSession_ipAddress_idx" ON "AuthSession"("ipAddress");`);
+  }
+  if (hasTable(db, "LoginAccessLog")) {
+    db.exec(`CREATE INDEX IF NOT EXISTS "LoginAccessLog_userId_idx" ON "LoginAccessLog"("userId");`);
+    db.exec(`CREATE INDEX IF NOT EXISTS "LoginAccessLog_ipAddress_createdAt_idx" ON "LoginAccessLog"("ipAddress", "createdAt");`);
+    db.exec(`CREATE INDEX IF NOT EXISTS "LoginAccessLog_deviceKey_createdAt_idx" ON "LoginAccessLog"("deviceKey", "createdAt");`);
+    db.exec(`CREATE INDEX IF NOT EXISTS "LoginAccessLog_success_createdAt_idx" ON "LoginAccessLog"("success", "createdAt");`);
+  }
+  db.exec(`DROP INDEX IF EXISTS "User_username_key";`);
 
   db.close();
   console.log(`Upgraded login security schema at ${resolvedDbPath}`);

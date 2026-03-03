@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
   if (!actor) return fail("Forbidden", 403);
 
   const users = await prisma.user.findMany({
+    where: actor.role === Role.SUPER_ADMIN ? undefined : { role: { not: Role.SUPER_ADMIN } },
     select: {
       id: true,
       username: true,
@@ -100,7 +101,7 @@ export async function POST(request: NextRequest) {
     })
     .catch(() => null);
 
-  if (!user) return fail("Username đã tồn tại hoặc dữ liệu không hợp lệ", 409);
+  if (!user) return fail("Không tạo được tài khoản hoặc dữ liệu không hợp lệ", 409);
 
   return ok(user, { status: 201 });
 }

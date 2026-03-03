@@ -71,8 +71,11 @@ export async function POST(request: NextRequest) {
     return fail("Không cho phép đăng nhập từ điện thoại", 403);
   }
 
-  const user = await prisma.user.findUnique({ where: { username: parsed.data.username } });
-  if (!user || !user.isActive) {
+  const candidates = await prisma.user.findMany({
+    where: { username: parsed.data.username, isActive: true },
+    orderBy: { createdAt: "asc" },
+  });
+  if (candidates.length === 0) {
     await prisma.loginAccessLog.create({
       data: {
         usernameInput: parsed.data.username,
@@ -86,11 +89,19 @@ export async function POST(request: NextRequest) {
     return fail("Invalid credentials", 401);
   }
 
-  const isValid = await verifyPassword(parsed.data.password, user.passwordHash);
+  let user = candidates[0];
+  let isValid = false;
+  for (const candidate of candidates) {
+    if (await verifyPassword(parsed.data.password, candidate.passwordHash)) {
+      user = candidate;
+      isValid = true;
+      break;
+    }
+  }
+
   if (!isValid) {
     await prisma.loginAccessLog.create({
       data: {
-        userId: user.id,
         usernameInput: parsed.data.username,
         ipAddress: ip,
         userAgent,

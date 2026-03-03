@@ -21,7 +21,7 @@ npm run db:setup
 npm run dev
 ```
 
-Mở `http://localhost:3000`.
+Mở `http://localhost:3001`.
 
 ## Tài khoản mẫu sau khi seed
 - `superadmin` / `123456`
