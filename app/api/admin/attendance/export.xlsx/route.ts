@@ -10,6 +10,7 @@ type EmployeeSummary = {
   department: string;
   allowedOffDaysPerMonth: number;
   totalDays: number;
+  missedPunchDays: number;
   lateCount: number;
   breakExceededCount: number;
   offDayCount: number;
@@ -60,12 +61,16 @@ export async function GET(request: NextRequest) {
         department: row.user.department ?? "",
         allowedOffDaysPerMonth: row.user.allowedOffDaysPerMonth,
         totalDays: 0,
+        missedPunchDays: 0,
         lateCount: 0,
         breakExceededCount: 0,
         offDayCount: 0,
       } satisfies EmployeeSummary);
 
     current.totalDays += 1;
+    if (row.status === "INCOMPLETE") {
+      current.missedPunchDays += 1;
+    }
 
     const warnings = parseWarnings(row.warningFlagsJson);
     const hasBreakExceeded = warnings.some((w) => w.endsWith("_EXCEEDED"));
@@ -90,6 +95,7 @@ export async function GET(request: NextRequest) {
       "Tên Nhân Viên",
       "Chức vụ",
       "Số ngày công",
+      "Số ngày quên chấm công",
       "Số lần đi muộn",
       "Số lần quá giờ nghỉ",
       "Số ngày phép",
@@ -100,6 +106,7 @@ export async function GET(request: NextRequest) {
       s.employeeName,
       s.department,
       s.totalDays,
+      s.missedPunchDays,
       s.lateCount,
       s.breakExceededCount,
       s.allowedOffDaysPerMonth,
@@ -109,7 +116,7 @@ export async function GET(request: NextRequest) {
 
   const workbook = XLSX.utils.book_new();
   const worksheet = XLSX.utils.aoa_to_sheet(sheetRows);
-  worksheet["!cols"] = [{ wch: 12 }, { wch: 34 }, { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 24 }, { wch: 28 }, { wch: 14 }];
+  worksheet["!cols"] = [{ wch: 12 }, { wch: 34 }, { wch: 18 }, { wch: 14 }, { wch: 20 }, { wch: 14 }, { wch: 24 }, { wch: 28 }, { wch: 14 }];
   XLSX.utils.book_append_sheet(workbook, worksheet, "TongHopChamCong");
 
   const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });

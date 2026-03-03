@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { apiJson } from "@/lib/client-api";
 import { attendanceStatusLabel } from "@/lib/display-labels";
 
@@ -35,11 +35,30 @@ function parseWarnings(raw: string | string[] | null | undefined): string[] {
 
 export default function AdminAttendance() {
   const [date, setDate] = useState(new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }));
+  const [exportMonth, setExportMonth] = useState(new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).slice(0, 7));
   const [rows, setRows] = useState<Row[]>([]);
   const [error, setError] = useState("");
   const [editingId, setEditingId] = useState("");
   const [checkInAt, setCheckInAt] = useState("");
   const [checkOutAt, setCheckOutAt] = useState("");
+
+  const exportMonthOptions = useMemo(() => {
+    const startYear = 2026;
+    const startMonth = 3;
+    const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Ho_Chi_Minh" }));
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    const currentKey = currentYear * 12 + currentMonth;
+    const startKey = startYear * 12 + startMonth;
+
+    const options: string[] = [];
+    for (let key = currentKey; key >= startKey; key -= 1) {
+      const year = Math.floor((key - 1) / 12);
+      const month = ((key - 1) % 12) + 1;
+      options.push(`${year}-${String(month).padStart(2, "0")}`);
+    }
+    return options;
+  }, []);
 
   async function load() {
     setError("");
@@ -87,30 +106,21 @@ export default function AdminAttendance() {
         <div className="row">
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           <button onClick={load}>Lọc</button>
-          <a href={`/api/admin/attendance/export.xlsx?month=${date.slice(0, 7)}`}>
+          <select value={exportMonth} onChange={(e) => setExportMonth(e.target.value)}>
+            {exportMonthOptions.map((month) => (
+              <option key={month} value={month}>
+                {`Tháng ${month.slice(5, 7)}/${month.slice(0, 4)}`}
+              </option>
+            ))}
+          </select>
+          <a href={`/api/admin/attendance/export.xlsx?month=${exportMonth}`}>
             <button type="button" className="secondary">
-              Xuất Excel tổng hợp theo nhân viên
+              Xuất Excel theo tháng
             </button>
           </a>
         </div>
         {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
       </div>
-
-      {editingId && (
-        <div className="card">
-          <h4 style={{ marginTop: 0 }}>Chỉnh công</h4>
-          <div className="row">
-            <label>Giờ vào</label>
-            <input type="datetime-local" value={checkInAt} onChange={(e) => setCheckInAt(e.target.value)} />
-            <label>Giờ ra</label>
-            <input type="datetime-local" value={checkOutAt} onChange={(e) => setCheckOutAt(e.target.value)} />
-            <button onClick={save}>Lưu</button>
-            <button className="secondary" onClick={() => setEditingId("")}>
-              Hủy
-            </button>
-          </div>
-        </div>
-      )}
 
       <div className="card">
         <table>
@@ -118,38 +128,21 @@ export default function AdminAttendance() {
             <tr>
               <th>Ngày</th>
               <th>Nhân viên</th>
-              <th>Phòng ban</th>
-              <th>Trạng thái</th>
-              <th>Giờ vào</th>
-              <th>Giờ ra</th>
-              <th>Phút công</th>
+              <th>Chức vụ</th>
+              <th>Lên ca</th>
+              <th>Xuống ca</th>
               <th>Nghỉ</th>
-              <th>Cảnh báo</th>
-              <th></th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => (
               <tr key={row.id}>
                 <td>{row.workDate}</td>
-                <td>
-                  {row.user.fullName} ({row.user.username})
-                </td>
+                <td>{row.user.fullName}</td>
                 <td>{row.user.department || "-"}</td>
-                <td>{attendanceStatusLabel(row.status)}</td>
                 <td>{row.checkInAt ? new Date(row.checkInAt).toLocaleString("vi-VN") : "-"}</td>
                 <td>{row.checkOutAt ? new Date(row.checkOutAt).toLocaleString("vi-VN") : "-"}</td>
-                <td>{row.workedMinutes ?? 0}</td>
-                <td>{row.isOffDay ? (row.isDeducted ? "Có (bị trừ)" : "Có") : "-"}</td>
-                <td>{parseWarnings(row.warningFlagsJson).join(", ") || "-"}</td>
-                <td>
-                  <button onClick={() => startEdit(row)}>Sửa</button>
-                  <a href={`/api/admin/attendance/export.xlsx?month=${date.slice(0, 7)}&userId=${row.user.id}`}>
-                    <button type="button" className="secondary">
-                      Xuất Excel NV
-                    </button>
-                  </a>
-                </td>
+                <td>{row.isOffDay ? (row.isDeducted ? "Off không phép" : "Off phép") : "-"}</td>
               </tr>
             ))}
           </tbody>

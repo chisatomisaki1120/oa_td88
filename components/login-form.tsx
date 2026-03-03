@@ -66,9 +66,6 @@ export default function LoginForm() {
             {loading ? "Đang xử lý..." : "Đăng nhập"}
           </button>
         </form>
-        <p className="small" style={{ marginTop: 16 }}>
-          Tài khoản seed mặc định: superadmin/admin/employee - mật khẩu: 123456
-        </p>
       </div>
     </div>
   );
