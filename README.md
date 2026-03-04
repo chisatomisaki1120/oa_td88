@@ -32,8 +32,9 @@ Mở `http://localhost:3001`.
 ## Scripts
 - `npm run dev`: chạy local dev server (tự dùng DB cũ nếu đã có; chỉ khởi tạo DB khi chưa có)
 - `npm run build`: build production
-- `npm run start`: chạy production server (tự dùng DB cũ nếu đã có; chỉ khởi tạo DB khi chưa có)
+- `npm run start`: chạy production server (tự chạy setup DB an toàn trước khi start)
 - `npm run lint`: lint code
+- `npm run db:prepare`: setup DB an toàn (không reset dữ liệu hiện có)
 - `npm run db:generate`: generate Prisma Client
 - `npm run db:push`: khởi tạo schema SQLite từ `prisma/schema.prisma` (giữ DB cũ nếu đã tồn tại)
 - `npm run db:upgrade:login-security`: nâng cấp DB hiện có cho tính năng bảo mật đăng nhập mới (không mất dữ liệu)

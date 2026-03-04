@@ -75,7 +75,7 @@ Neu da co du lieu that, KHONG dung `db:setup` vi se reset schema va seed lai. Lu
 npm run db:push
 ```
 
-## 7. Chay app bang PM2
+## 7. Chay app bang PM2 (lan dau)
 
 ```bash
 sudo npm install -g pm2
@@ -93,17 +93,21 @@ pm2 logs oa-td88
 curl http://127.0.0.1:3001
 ```
 
-## 8. Cau hinh Nginx reverse proxy
+## 8. Cau hinh Nginx reverse proxy (upstream)
 
 Tao file `/etc/nginx/sites-available/oa-td88`:
 
 ```nginx
+upstream oa_td88_upstream {
+    server 127.0.0.1:3001;
+}
+
 server {
     listen 80;
     server_name chamcong.example.com;
 
     location / {
-        proxy_pass http://127.0.0.1:3001;
+        proxy_pass http://oa_td88_upstream;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -136,7 +140,19 @@ Kiem tra auto renew:
 sudo systemctl status certbot.timer
 ```
 
-## 10. Quy trinh update phien ban
+## 10. Quy trinh update KHONG gian doan (Blue-Green)
+
+Muc tieu: app cu van phuc vu tren `3001`, app moi chay tren `3002`, test OK roi moi chuyen Nginx qua `3002`.
+
+### Buoc 1: Backup truoc deploy
+
+```bash
+cd /www/wwwroot/oa_td88
+mkdir -p backups/pre-deploy
+npm run db:export:json -- backups/pre-deploy/db-$(date +%F-%H%M%S).json
+```
+
+### Buoc 2: Cap nhat code + build
 
 ```bash
 cd /www/wwwroot/oa_td88
@@ -144,14 +160,49 @@ git pull
 npm ci
 npm run db:push
 npm run build
-pm2 restart oa-td88
 ```
 
-Neu update co thay doi lon ve schema va ban muon reset data mau:
+Khong dung `db:setup` tren production vi co the mat du lieu.
+
+### Buoc 3: Start ban moi tren port 3002
 
 ```bash
-npm run db:setup
-pm2 restart oa-td88
+cd /www/wwwroot/oa_td88
+PORT=3002 pm2 start npm --name oa-td88-next -- start
+curl -I http://127.0.0.1:3002
+```
+
+### Buoc 4: Chuyen traffic Nginx sang port 3002
+
+Sua file `/etc/nginx/sites-available/oa-td88`:
+
+- Doi `server 127.0.0.1:3001;` thanh `server 127.0.0.1:3002;`
+
+Sau do apply:
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+### Buoc 5: Theo doi va dung ban cu
+
+```bash
+pm2 logs oa-td88-next --lines 200
+pm2 delete oa-td88
+pm2 rename oa-td88-next oa-td88
+pm2 save
+```
+
+### Rollback nhanh (neu can)
+
+Neu co loi sau khi switch:
+
+1. Sua Nginx upstream lai `127.0.0.1:3001`, reload Nginx.
+2. Chay lai ban cu:
+
+```bash
+PORT=3001 pm2 start npm --name oa-td88 -- start
 ```
 
 ## 11. Lenh debug nhanh

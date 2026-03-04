@@ -499,3 +499,11 @@ td {
   min-width: 68px;
   justify-content: center;
 }
+
+.admin-users-inline-panel {
+  margin: 8px 0;
+  padding: 12px;
+  border: 1px solid #dbe6f2;
+  border-radius: 10px;
+  background: #fbfdff;
+}

@@ -3,10 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "tsx scripts/db-prepare.ts && node scripts/next-run-with-env-port.mjs dev",
+    "dev": "npm run db:prepare && node scripts/next-run-with-env-port.mjs dev",
     "build": "next build",
-    "start": "tsx scripts/db-prepare.ts && node scripts/next-run-with-env-port.mjs start",
+    "start": "npm run db:prepare && node scripts/next-run-with-env-port.mjs start",
     "lint": "eslint",
+    "db:prepare": "tsx scripts/db-prepare.ts",
     "db:generate": "prisma generate",
     "db:push": "tsx scripts/db-push.ts",
     "db:upgrade:login-security": "tsx scripts/db-upgrade-login-security.ts",

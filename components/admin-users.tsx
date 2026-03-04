@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, Fragment, useEffect, useState } from "react";
 import type { Role } from "@prisma/client";
 import { apiJson } from "@/lib/client-api";
 import { roleLabel, workModeLabel } from "@/lib/display-labels";
@@ -57,7 +57,7 @@ export default function AdminUsers({ actorRole }: Props) {
     allowedOffDaysPerMonth: 2,
   });
   const [editingId, setEditingId] = useState("");
-  const [selectedRiskUser, setSelectedRiskUser] = useState<User | null>(null);
+  const [selectedRiskUserId, setSelectedRiskUserId] = useState("");
   const [editForm, setEditForm] = useState({
     fullName: "",
     email: "",
@@ -142,6 +142,10 @@ export default function AdminUsers({ actorRole }: Props) {
     });
   }
 
+  function toggleRiskDetail(userId: string) {
+    setSelectedRiskUserId((current) => (current === userId ? "" : userId));
+  }
+
   async function saveEdit() {
     if (!editingId) return;
     setError("");
@@ -208,56 +212,6 @@ export default function AdminUsers({ actorRole }: Props) {
         {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
       </div>
 
-      {editingId && (
-        <div className="card">
-          <h3 style={{ marginTop: 0 }}>Chỉnh tài khoản</h3>
-          <div className="row">
-            <input value={editForm.fullName} onChange={(e) => setEditForm((f) => ({ ...f, fullName: e.target.value }))} placeholder="Họ tên" />
-            <input value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} placeholder="Thư điện tử" />
-            <input value={editForm.department} onChange={(e) => setEditForm((f) => ({ ...f, department: e.target.value }))} placeholder="Chức vụ" />
-            <select value={editForm.role} onChange={(e) => setEditForm((f) => ({ ...f, role: e.target.value }))}>
-              <option value="EMPLOYEE">Nhân viên</option>
-              <option value="ADMIN">Quản trị viên</option>
-              {canAssignSuperAdmin && <option value="SUPER_ADMIN">Siêu quản trị</option>}
-            </select>
-            <input type="time" value={editForm.workStartTime} onChange={(e) => setEditForm((f) => ({ ...f, workStartTime: e.target.value }))} />
-            <input type="time" value={editForm.workEndTime} onChange={(e) => setEditForm((f) => ({ ...f, workEndTime: e.target.value }))} />
-            <select value={editForm.workMode} onChange={(e) => setEditForm((f) => ({ ...f, workMode: e.target.value as "ONLINE" | "OFFLINE" }))}>
-              <option value="OFFLINE">Offline</option>
-              <option value="ONLINE">Online</option>
-            </select>
-            <input
-              type="number"
-              value={editForm.lateGraceMinutes}
-              onChange={(e) => setEditForm((f) => ({ ...f, lateGraceMinutes: Number(e.target.value) }))}
-              style={{ width: 90 }}
-            />
-            <input
-              type="number"
-              value={editForm.earlyLeaveGraceMinutes}
-              onChange={(e) => setEditForm((f) => ({ ...f, earlyLeaveGraceMinutes: Number(e.target.value) }))}
-              style={{ width: 90 }}
-            />
-            <input
-              type="number"
-              min={0}
-              max={31}
-              value={editForm.allowedOffDaysPerMonth}
-              onChange={(e) => setEditForm((f) => ({ ...f, allowedOffDaysPerMonth: Number(e.target.value) }))}
-              style={{ width: 100 }}
-            />
-            <input
-              type="password"
-              value={editForm.password}
-              onChange={(e) => setEditForm((f) => ({ ...f, password: e.target.value }))}
-              placeholder="Mật khẩu mới (nếu đổi)"
-            />
-            <button onClick={saveEdit}>Lưu</button>
-            <button className="secondary" onClick={() => setEditingId("")}>Hủy</button>
-          </div>
-        </div>
-      )}
-
       <div className="card">
         <h3 style={{ marginTop: 0 }}>Danh sách tài khoản</h3>
         <div className="admin-users-table-wrap">
@@ -276,96 +230,156 @@ export default function AdminUsers({ actorRole }: Props) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((u) => (
-              <tr key={u.id}>
-                <td className="employee-name-cell">{`${u.fullName} (${u.username})`}</td>
-                <td>{u.department || "-"}</td>
-                <td>{roleLabel(u.role)}</td>
-                <td>
-                  {u.workStartTime && u.workEndTime
-                    ? `${u.workStartTime}-${u.workEndTime} (cho phép trễ/sớm ${u.lateGraceMinutes}/${u.earlyLeaveGraceMinutes} phút)`
-                    : "Theo ca gán"}
-                </td>
-                <td>{workModeLabel(u.workMode)}</td>
-                <td>{u.allowedOffDaysPerMonth}</td>
-                <td>
-                  <span className={`status-chip ${u.isActive ? "active" : "inactive"}`}>{u.isActive ? "Đang hoạt động" : "Ngừng hoạt động"}</span>
-                </td>
-                <td>
-                  {u.hasSharedLoginRisk ? (
-                    <div className="risk-chip-group">
-                      {u.hasSharedIpRisk && (
-                        <button className="risk-chip risk-chip-ip risk-chip-btn" type="button" onClick={() => setSelectedRiskUser(u)}>
-                          Trùng IP ({u.sharedIpConflictAccounts ?? 0})
-                        </button>
+            {rows.map((u) => {
+              const showInlineEdit = editingId === u.id;
+              const showInlineRisk = selectedRiskUserId === u.id;
+              const showInlinePanel = showInlineEdit || showInlineRisk;
+              return (
+                <Fragment key={u.id}>
+                  <tr>
+                    <td className="employee-name-cell">{`${u.fullName} (${u.username})`}</td>
+                    <td>{u.department || "-"}</td>
+                    <td>{roleLabel(u.role)}</td>
+                    <td>
+                      {u.workStartTime && u.workEndTime
+                        ? `${u.workStartTime}-${u.workEndTime} (cho phép trễ/sớm ${u.lateGraceMinutes}/${u.earlyLeaveGraceMinutes} phút)`
+                        : "Theo ca gán"}
+                    </td>
+                    <td>{workModeLabel(u.workMode)}</td>
+                    <td>{u.allowedOffDaysPerMonth}</td>
+                    <td>
+                      <span className={`status-chip ${u.isActive ? "active" : "inactive"}`}>{u.isActive ? "Đang hoạt động" : "Ngừng hoạt động"}</span>
+                    </td>
+                    <td>
+                      {u.hasSharedLoginRisk ? (
+                        <div className="risk-chip-group">
+                          {u.hasSharedIpRisk && (
+                            <button className="risk-chip risk-chip-ip risk-chip-btn" type="button" onClick={() => toggleRiskDetail(u.id)}>
+                              Trùng IP ({u.sharedIpConflictAccounts ?? 0})
+                            </button>
+                          )}
+                          {u.hasSharedDeviceRisk && (
+                            <button className="risk-chip risk-chip-device risk-chip-btn" type="button" onClick={() => toggleRiskDetail(u.id)}>
+                              Trùng thiết bị ({u.sharedDeviceConflictAccounts ?? 0})
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="muted-chip">-</span>
                       )}
-                      {u.hasSharedDeviceRisk && (
-                        <button className="risk-chip risk-chip-device risk-chip-btn" type="button" onClick={() => setSelectedRiskUser(u)}>
-                          Trùng thiết bị ({u.sharedDeviceConflictAccounts ?? 0})
+                    </td>
+                    <td>
+                      <div className="actions-col">
+                        <button className="edit-btn" onClick={() => (showInlineEdit ? setEditingId("") : openEdit(u))}>
+                          {showInlineEdit ? "Đóng" : "Sửa"}
                         </button>
-                      )}
-                    </div>
-                  ) : (
-                    <span className="muted-chip">-</span>
+                        <button className="danger delete-btn" onClick={() => deleteUser(u)}>
+                          Xóa
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  {showInlinePanel && (
+                    <tr>
+                      <td colSpan={9}>
+                        <div className="admin-users-inline-panel">
+                          {showInlineEdit && (
+                            <section>
+                              <h4 style={{ marginTop: 0 }}>Chỉnh tài khoản: {u.fullName}</h4>
+                              <div className="row">
+                                <input value={editForm.fullName} onChange={(e) => setEditForm((f) => ({ ...f, fullName: e.target.value }))} placeholder="Họ tên" />
+                                <input value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} placeholder="Thư điện tử" />
+                                <input value={editForm.department} onChange={(e) => setEditForm((f) => ({ ...f, department: e.target.value }))} placeholder="Chức vụ" />
+                                <select value={editForm.role} onChange={(e) => setEditForm((f) => ({ ...f, role: e.target.value }))}>
+                                  <option value="EMPLOYEE">Nhân viên</option>
+                                  <option value="ADMIN">Quản trị viên</option>
+                                  {canAssignSuperAdmin && <option value="SUPER_ADMIN">Siêu quản trị</option>}
+                                </select>
+                                <input type="time" value={editForm.workStartTime} onChange={(e) => setEditForm((f) => ({ ...f, workStartTime: e.target.value }))} />
+                                <input type="time" value={editForm.workEndTime} onChange={(e) => setEditForm((f) => ({ ...f, workEndTime: e.target.value }))} />
+                                <select value={editForm.workMode} onChange={(e) => setEditForm((f) => ({ ...f, workMode: e.target.value as "ONLINE" | "OFFLINE" }))}>
+                                  <option value="OFFLINE">Offline</option>
+                                  <option value="ONLINE">Online</option>
+                                </select>
+                                <input
+                                  type="number"
+                                  value={editForm.lateGraceMinutes}
+                                  onChange={(e) => setEditForm((f) => ({ ...f, lateGraceMinutes: Number(e.target.value) }))}
+                                  style={{ width: 90 }}
+                                />
+                                <input
+                                  type="number"
+                                  value={editForm.earlyLeaveGraceMinutes}
+                                  onChange={(e) => setEditForm((f) => ({ ...f, earlyLeaveGraceMinutes: Number(e.target.value) }))}
+                                  style={{ width: 90 }}
+                                />
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={31}
+                                  value={editForm.allowedOffDaysPerMonth}
+                                  onChange={(e) => setEditForm((f) => ({ ...f, allowedOffDaysPerMonth: Number(e.target.value) }))}
+                                  style={{ width: 100 }}
+                                />
+                                <input
+                                  type="password"
+                                  value={editForm.password}
+                                  onChange={(e) => setEditForm((f) => ({ ...f, password: e.target.value }))}
+                                  placeholder="Mật khẩu mới (nếu đổi)"
+                                />
+                                <button onClick={saveEdit}>Lưu</button>
+                                <button className="secondary" onClick={() => setEditingId("")}>Hủy</button>
+                              </div>
+                            </section>
+                          )}
+                          {showInlineRisk && (
+                            <section>
+                              <div className="row" style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                                <h4 style={{ margin: 0 }}>
+                                  Chi tiết trùng IP/thiết bị: {u.fullName} ({u.username})
+                                </h4>
+                                <button className="secondary" type="button" onClick={() => setSelectedRiskUserId("")}>
+                                  Đóng
+                                </button>
+                              </div>
+                              <table>
+                                <thead>
+                                  <tr>
+                                    <th>Tài khoản trùng</th>
+                                    <th>Trùng IP (hôm nay)</th>
+                                    <th>Trùng thiết bị</th>
+                                    <th>Lần gần nhất</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {(u.sharedLoginConflicts ?? []).map((conflict) => (
+                                    <tr key={conflict.accountId}>
+                                      <td>{`${conflict.fullName} (${conflict.username})`}</td>
+                                      <td>{conflict.ipConflictCountToday}</td>
+                                      <td>{conflict.deviceConflictCount}</td>
+                                      <td>{new Date(conflict.lastConflictAt).toLocaleString("vi-VN")}</td>
+                                    </tr>
+                                  ))}
+                                  {(u.sharedLoginConflicts ?? []).length === 0 && (
+                                    <tr>
+                                      <td colSpan={4}>Không có dữ liệu</td>
+                                    </tr>
+                                  )}
+                                </tbody>
+                              </table>
+                            </section>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
                   )}
-                </td>
-                <td>
-                  <div className="actions-col">
-                    <button className="edit-btn" onClick={() => openEdit(u)}>
-                      Sửa
-                    </button>
-                    <button className="danger delete-btn" onClick={() => deleteUser(u)}>
-                      Xóa
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+                </Fragment>
+              );
+            })}
           </tbody>
           </table>
         </div>
       </div>
-
-      {selectedRiskUser && (
-        <div className="card">
-          <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-            <h3 style={{ marginTop: 0, marginBottom: 0 }}>
-              Chi tiết cảnh báo đăng nhập: {selectedRiskUser.fullName} ({selectedRiskUser.username})
-            </h3>
-            <button className="secondary" type="button" onClick={() => setSelectedRiskUser(null)}>
-              Đóng
-            </button>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Tài khoản trùng</th>
-                <th>Trùng IP (hôm nay)</th>
-                <th>Trùng thiết bị</th>
-                <th>Lần gần nhất</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(selectedRiskUser.sharedLoginConflicts ?? []).map((conflict) => (
-                <tr key={conflict.accountId}>
-                  <td>{`${conflict.fullName} (${conflict.username})`}</td>
-                  <td>{conflict.ipConflictCountToday}</td>
-                  <td>{conflict.deviceConflictCount}</td>
-                  <td>{new Date(conflict.lastConflictAt).toLocaleString("vi-VN")}</td>
-                </tr>
-              ))}
-              {(selectedRiskUser.sharedLoginConflicts ?? []).length === 0 && (
-                <tr>
-                  <td colSpan={4}>Không có dữ liệu</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-          <p className="small" style={{ marginTop: 8 }}>
-            Trùng IP chỉ tính trong ngày hiện tại (reset khi sang ngày mới). Trùng thiết bị lưu theo lịch sử.
-          </p>
-        </div>
-      )}
     </>
   );
 }
