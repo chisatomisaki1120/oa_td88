@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 
 export const SESSION_COOKIE = "oa_session";
 const SESSION_DAYS = 14;
+const SESSION_TOUCH_INTERVAL_MS = 60 * 1000;
 
 export type SessionUser = {
   id: string;
@@ -82,11 +83,35 @@ export async function getSessionUserFromCookies(): Promise<SessionUser | null> {
 async function getSessionUserFromToken(token: string): Promise<SessionUser | null> {
   const session = await prisma.authSession.findUnique({
     where: { tokenHash: hashToken(token) },
-    include: { user: true },
+    select: {
+      id: true,
+      expiresAt: true,
+      lastSeenAt: true,
+      user: {
+        select: {
+          id: true,
+          username: true,
+          fullName: true,
+          role: true,
+          department: true,
+          isActive: true,
+        },
+      },
+    },
   });
 
   if (!session || session.expiresAt < new Date() || !session.user.isActive) {
     return null;
+  }
+
+  const now = new Date();
+  if (!session.lastSeenAt || now.getTime() - session.lastSeenAt.getTime() >= SESSION_TOUCH_INTERVAL_MS) {
+    await prisma.authSession
+      .update({
+        where: { id: session.id },
+        data: { lastSeenAt: now },
+      })
+      .catch(() => undefined);
   }
 
   return {

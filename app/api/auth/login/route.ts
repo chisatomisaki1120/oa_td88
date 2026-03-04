@@ -31,8 +31,26 @@ function getClientIp(request: NextRequest): string {
   return request.headers.get("x-real-ip")?.trim() || "unknown";
 }
 
-function getDeviceKey(ipAddress: string, userAgent: string): string {
-  return createHash("sha256").update(`${ipAddress}|${userAgent}`).digest("hex");
+function getDeviceKey(
+  userAgent: string,
+  clientDevice:
+    | {
+        userAgent?: string;
+        platform?: string;
+        maxTouchPoints?: number;
+        screenWidth?: number;
+        screenHeight?: number;
+      }
+    | undefined,
+): string {
+  const stablePayload = [
+    clientDevice?.userAgent || userAgent,
+    clientDevice?.platform || "",
+    String(clientDevice?.maxTouchPoints ?? 0),
+    String(clientDevice?.screenWidth ?? 0),
+    String(clientDevice?.screenHeight ?? 0),
+  ].join("|");
+  return createHash("sha256").update(stablePayload).digest("hex");
 }
 
 function isMobilePhoneUserAgent(userAgent: string): boolean {
@@ -92,6 +110,33 @@ async function markSharedRisk(userId: string, relatedUserIds: string[]) {
   });
 }
 
+async function logFailedLoginAttempt(params: {
+  usernameInput: string;
+  ipAddress: string;
+  userAgent: string;
+  deviceKey: string;
+  blockedReason?: string;
+  failedReason?: string;
+  userId?: string;
+  isSharedIp?: boolean;
+  isSharedDevice?: boolean;
+}) {
+  await prisma.loginAccessLog.create({
+    data: {
+      userId: params.userId,
+      usernameInput: params.usernameInput,
+      ipAddress: params.ipAddress,
+      userAgent: params.userAgent,
+      deviceKey: params.deviceKey,
+      success: false,
+      blockedReason: params.blockedReason,
+      failedReason: params.failedReason,
+      isSharedIp: Boolean(params.isSharedIp),
+      isSharedDevice: Boolean(params.isSharedDevice),
+    },
+  });
+}
+
 async function logConflictEvents(
   userId: string,
   relatedUserIds: string[],
@@ -133,81 +178,59 @@ async function logConflictEvents(
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
   const userAgent = request.headers.get("user-agent") ?? "unknown";
-  const deviceKey = getDeviceKey(ip, userAgent);
-  const securityConfig = await getLoginSecurityConfig();
-
   const body = await request.json().catch(() => null);
   const parsed = loginSchema.safeParse(body);
   if (!parsed.success) {
     return fail("Invalid payload", 400, parsed.error.flatten());
   }
+  const deviceKey = getDeviceKey(userAgent, parsed.data.clientDevice);
+  const securityConfig = await getLoginSecurityConfig();
 
   const limit = await consumeLoginAttempt(ip, parsed.data.username);
   if (!limit.allowed) {
-    await prisma.loginAccessLog.create({
-      data: {
-        usernameInput: parsed.data.username,
-        ipAddress: ip,
-        userAgent,
-        deviceKey,
-        success: false,
-        blockedReason: "TOO_MANY_ATTEMPTS",
-      },
+    await logFailedLoginAttempt({
+      usernameInput: parsed.data.username,
+      ipAddress: ip,
+      userAgent,
+      deviceKey,
+      blockedReason: "TOO_MANY_ATTEMPTS",
     });
     return fail("Too many login attempts", 429, { retryAfterSeconds: limit.retryAfterSeconds });
   }
 
   if (securityConfig.blockMobilePhoneLogin && isMobilePhoneRequest(request, userAgent, parsed.data.clientDevice)) {
-    await prisma.loginAccessLog.create({
-      data: {
-        usernameInput: parsed.data.username,
-        ipAddress: ip,
-        userAgent,
-        deviceKey,
-        success: false,
-        blockedReason: "MOBILE_DEVICE_BLOCKED",
-      },
+    await logFailedLoginAttempt({
+      usernameInput: parsed.data.username,
+      ipAddress: ip,
+      userAgent,
+      deviceKey,
+      blockedReason: "MOBILE_DEVICE_BLOCKED",
     });
     return fail("Không cho phép đăng nhập từ điện thoại", 403);
   }
 
-  const candidates = await prisma.user.findMany({
-    where: { username: parsed.data.username, isActive: true },
-    orderBy: { createdAt: "asc" },
+  const user = await prisma.user.findUnique({
+    where: { username: parsed.data.username },
   });
 
-  if (candidates.length === 0) {
-    await prisma.loginAccessLog.create({
-      data: {
-        usernameInput: parsed.data.username,
-        ipAddress: ip,
-        userAgent,
-        deviceKey,
-        success: false,
-        failedReason: "INVALID_CREDENTIALS",
-      },
+  if (!user || !user.isActive) {
+    await logFailedLoginAttempt({
+      usernameInput: parsed.data.username,
+      ipAddress: ip,
+      userAgent,
+      deviceKey,
+      failedReason: "INVALID_CREDENTIALS",
     });
     return fail("Invalid credentials", 401);
   }
 
-  let user = null as (typeof candidates)[number] | null;
-  for (const candidate of candidates) {
-    if (await verifyPassword(parsed.data.password, candidate.passwordHash)) {
-      user = candidate;
-      break;
-    }
-  }
-
-  if (!user) {
-    await prisma.loginAccessLog.create({
-      data: {
-        usernameInput: parsed.data.username,
-        ipAddress: ip,
-        userAgent,
-        deviceKey,
-        success: false,
-        failedReason: "INVALID_CREDENTIALS",
-      },
+  if (!(await verifyPassword(parsed.data.password, user.passwordHash))) {
+    await logFailedLoginAttempt({
+      usernameInput: parsed.data.username,
+      ipAddress: ip,
+      userAgent,
+      deviceKey,
+      failedReason: "INVALID_CREDENTIALS",
     });
     return fail("Invalid credentials", 401);
   }
@@ -215,28 +238,39 @@ export async function POST(request: NextRequest) {
   const now = new Date();
   const todayVn = vnDateString(now);
   const todayStart = parseWorkDateToUtc(todayVn);
+  const activeSessionWindowMinutesRaw = Number(process.env.SINGLE_DEVICE_ACTIVE_WINDOW_MINUTES ?? "30");
+  const activeSessionWindowMinutes = Number.isFinite(activeSessionWindowMinutesRaw) && activeSessionWindowMinutesRaw > 0 ? activeSessionWindowMinutesRaw : 30;
+  const activeSessionCutoff = new Date(now.getTime() - activeSessionWindowMinutes * 60 * 1000);
 
   if (Math.random() < 0.05) {
     await prisma.authSession.deleteMany({ where: { expiresAt: { lte: now } } });
   }
 
   if (securityConfig.enforceSingleDevicePerAccount) {
-    const userActiveSessions = await prisma.authSession.findMany({
-      where: { userId: user.id, expiresAt: { gt: now } },
-      select: { deviceKey: true },
+    await prisma.authSession.deleteMany({
+      where: {
+        userId: user.id,
+        OR: [{ expiresAt: { lte: now } }, { lastSeenAt: { lt: activeSessionCutoff } }],
+      },
     });
-    const hasOtherDeviceSession = userActiveSessions.some((s) => s.deviceKey !== deviceKey);
-    if (hasOtherDeviceSession) {
-      await prisma.loginAccessLog.create({
-        data: {
-          userId: user.id,
-          usernameInput: parsed.data.username,
-          ipAddress: ip,
-          userAgent,
-          deviceKey,
-          success: false,
-          blockedReason: "ACCOUNT_ACTIVE_ON_OTHER_DEVICE",
-        },
+
+    const otherDeviceSession = await prisma.authSession.findFirst({
+      where: {
+        userId: user.id,
+        expiresAt: { gt: now },
+        lastSeenAt: { gte: activeSessionCutoff },
+        deviceKey: { not: deviceKey },
+      },
+      select: { id: true },
+    });
+    if (otherDeviceSession) {
+      await logFailedLoginAttempt({
+        userId: user.id,
+        usernameInput: parsed.data.username,
+        ipAddress: ip,
+        userAgent,
+        deviceKey,
+        blockedReason: "ACCOUNT_ACTIVE_ON_OTHER_DEVICE",
       });
       return fail("Tài khoản đang đăng nhập trên thiết bị khác", 409);
     }
@@ -256,26 +290,21 @@ export async function POST(request: NextRequest) {
       const sameIp = recentConflict.ipAddress === ip;
       const sameDevice = recentConflict.deviceKey === deviceKey;
       const relatedUserIds = recentConflict.userId ? [recentConflict.userId] : [];
-      await prisma.loginAccessLog.create({
-        data: {
-          userId: user.id,
-          usernameInput: parsed.data.username,
-          ipAddress: ip,
-          userAgent,
-          deviceKey,
-          success: false,
-          blockedReason: "DEVICE_OR_IP_LOCKED_TODAY",
-          isSharedIp: sameIp,
-          isSharedDevice: sameDevice,
-        },
+      await logFailedLoginAttempt({
+        userId: user.id,
+        usernameInput: parsed.data.username,
+        ipAddress: ip,
+        userAgent,
+        deviceKey,
+        blockedReason: "DEVICE_OR_IP_LOCKED_TODAY",
+        isSharedIp: sameIp,
+        isSharedDevice: sameDevice,
       });
-      if (sameIp) {
-        await logConflictEvents(user.id, relatedUserIds, LoginConflictType.IP, ip, deviceKey, todayVn);
-      }
-      if (sameDevice) {
-        await logConflictEvents(user.id, relatedUserIds, LoginConflictType.DEVICE, ip, deviceKey, todayVn);
-      }
-      await markSharedRisk(user.id, relatedUserIds);
+      await Promise.all([
+        sameIp ? logConflictEvents(user.id, relatedUserIds, LoginConflictType.IP, ip, deviceKey, todayVn) : Promise.resolve(),
+        sameDevice ? logConflictEvents(user.id, relatedUserIds, LoginConflictType.DEVICE, ip, deviceKey, todayVn) : Promise.resolve(),
+        markSharedRisk(user.id, relatedUserIds),
+      ]);
       return fail("Thiết bị này hoặc IP trong ngày đã đăng nhập tài khoản khác", 409);
     }
   }
@@ -298,15 +327,12 @@ export async function POST(request: NextRequest) {
   const isSharedIp = sharedIpUserIds.length > 0;
   const isSharedDevice = sharedDeviceUserIds.length > 0;
 
-  if (isSharedIp || isSharedDevice) {
-    await markSharedRisk(user.id, [...sharedIpUserIds, ...sharedDeviceUserIds]);
-  }
-  if (isSharedIp) {
-    await logConflictEvents(user.id, sharedIpUserIds, LoginConflictType.IP, ip, deviceKey, todayVn);
-  }
-  if (isSharedDevice) {
-    await logConflictEvents(user.id, sharedDeviceUserIds, LoginConflictType.DEVICE, ip, deviceKey, todayVn);
-  }
+  const allSharedIds = [...sharedIpUserIds, ...sharedDeviceUserIds];
+  await Promise.all([
+    allSharedIds.length > 0 ? markSharedRisk(user.id, allSharedIds) : Promise.resolve(),
+    isSharedIp ? logConflictEvents(user.id, sharedIpUserIds, LoginConflictType.IP, ip, deviceKey, todayVn) : Promise.resolve(),
+    isSharedDevice ? logConflictEvents(user.id, sharedDeviceUserIds, LoginConflictType.DEVICE, ip, deviceKey, todayVn) : Promise.resolve(),
+  ]);
 
   if (securityConfig.enforceSingleDevicePerAccount) {
     await prisma.authSession.deleteMany({ where: { userId: user.id } });

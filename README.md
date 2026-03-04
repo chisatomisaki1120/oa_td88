@@ -55,6 +55,7 @@ Mở `http://localhost:3001`.
   - `DB_AUTO_BACKUP_INTERVAL_MINUTES=15`
   - `DB_BACKUP_DIR=backups/auto`
   - `DB_BACKUP_MAX_FILES=96`
+  - `SINGLE_DEVICE_ACTIVE_WINDOW_MINUTES=30` (session cu qua nguong nay se khong tinh la "dang online tren thiet bi khac")
 
 ## Cấu trúc thư mục chính
 - `app/`: pages + route handlers API

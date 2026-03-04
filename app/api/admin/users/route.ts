@@ -52,40 +52,6 @@ export async function GET(request: NextRequest) {
 
   const visibleUserIds = users.map((u) => u.id);
   const todayVn = vnDateString();
-  let conflictEvents: Array<{
-    userId: string;
-    conflictWithUserId: string;
-    conflictType: "IP" | "DEVICE";
-    occurredAt: Date;
-    conflictWithUser: { id: string; username: string; fullName: string };
-  }> = [];
-  try {
-    conflictEvents = await prisma.loginConflictEvent.findMany({
-      where: {
-        userId: { in: visibleUserIds },
-        conflictWithUserId: { in: visibleUserIds },
-        OR: [{ conflictType: "DEVICE" }, { conflictType: "IP", occurredDate: todayVn }],
-      },
-      select: {
-        userId: true,
-        conflictWithUserId: true,
-        conflictType: true,
-        occurredAt: true,
-        conflictWithUser: {
-          select: {
-            id: true,
-            username: true,
-            fullName: true,
-          },
-        },
-      },
-      orderBy: { occurredAt: "desc" },
-    });
-  } catch (error) {
-    const code = (error as { code?: string } | null)?.code;
-    if (code !== "P2021") throw error;
-  }
-
   const byUser = new Map<
     string,
     Map<
@@ -101,26 +67,90 @@ export async function GET(request: NextRequest) {
     >
   >();
 
-  for (const event of conflictEvents) {
-    const conflictUser = event.conflictWithUser;
-    const userMap = byUser.get(event.userId) ?? new Map();
-    const existing = userMap.get(conflictUser.id) ?? {
-      accountId: conflictUser.id,
-      username: conflictUser.username,
-      fullName: conflictUser.fullName,
-      ipConflictCountToday: 0,
-      deviceConflictCount: 0,
-      lastConflictAt: event.occurredAt.toISOString(),
-    };
+  if (visibleUserIds.length > 0) {
+    let ipGrouped: Array<{
+      userId: string;
+      conflictWithUserId: string;
+      _count: { _all: number };
+      _max: { occurredAt: Date | null };
+    }> = [];
+    let deviceGrouped: Array<{
+      userId: string;
+      conflictWithUserId: string;
+      _count: { _all: number };
+      _max: { occurredAt: Date | null };
+    }> = [];
 
-    if (event.conflictType === "IP") existing.ipConflictCountToday += 1;
-    if (event.conflictType === "DEVICE") existing.deviceConflictCount += 1;
-    if (new Date(existing.lastConflictAt) < event.occurredAt) {
-      existing.lastConflictAt = event.occurredAt.toISOString();
+    try {
+      [ipGrouped, deviceGrouped] = await Promise.all([
+        prisma.loginConflictEvent.groupBy({
+          by: ["userId", "conflictWithUserId"],
+          where: {
+            userId: { in: visibleUserIds },
+            conflictWithUserId: { in: visibleUserIds },
+            conflictType: "IP",
+            occurredDate: todayVn,
+          },
+          _count: { _all: true },
+          _max: { occurredAt: true },
+        }),
+        prisma.loginConflictEvent.groupBy({
+          by: ["userId", "conflictWithUserId"],
+          where: {
+            userId: { in: visibleUserIds },
+            conflictWithUserId: { in: visibleUserIds },
+            conflictType: "DEVICE",
+          },
+          _count: { _all: true },
+          _max: { occurredAt: true },
+        }),
+      ]);
+    } catch (error) {
+      const code = (error as { code?: string } | null)?.code;
+      if (code !== "P2021") throw error;
     }
 
-    userMap.set(conflictUser.id, existing);
-    byUser.set(event.userId, userMap);
+    const relatedIds = Array.from(new Set([...ipGrouped, ...deviceGrouped].map((row) => row.conflictWithUserId)));
+    const relatedUsers =
+      relatedIds.length === 0
+        ? []
+        : await prisma.user.findMany({
+            where: { id: { in: relatedIds } },
+            select: { id: true, username: true, fullName: true },
+          });
+    const relatedUserMap = new Map(relatedUsers.map((u) => [u.id, u]));
+
+    const mergeRow = (
+      row: { userId: string; conflictWithUserId: string; _count: { _all: number }; _max: { occurredAt: Date | null } },
+      type: "IP" | "DEVICE",
+    ) => {
+      const conflictUser = relatedUserMap.get(row.conflictWithUserId);
+      if (!conflictUser) return;
+
+      const userMap = byUser.get(row.userId) ?? new Map();
+      const existing = userMap.get(conflictUser.id) ?? {
+        accountId: conflictUser.id,
+        username: conflictUser.username,
+        fullName: conflictUser.fullName,
+        ipConflictCountToday: 0,
+        deviceConflictCount: 0,
+        lastConflictAt: row._max.occurredAt?.toISOString() ?? new Date(0).toISOString(),
+      };
+
+      if (type === "IP") existing.ipConflictCountToday += row._count._all;
+      if (type === "DEVICE") existing.deviceConflictCount += row._count._all;
+
+      const lastAt = row._max.occurredAt?.toISOString();
+      if (lastAt && new Date(existing.lastConflictAt) < new Date(lastAt)) {
+        existing.lastConflictAt = lastAt;
+      }
+
+      userMap.set(conflictUser.id, existing);
+      byUser.set(row.userId, userMap);
+    };
+
+    for (const row of ipGrouped) mergeRow(row, "IP");
+    for (const row of deviceGrouped) mergeRow(row, "DEVICE");
   }
 
   const enrichedUsers = users.map((user) => {
