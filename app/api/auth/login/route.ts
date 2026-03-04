@@ -13,6 +13,16 @@ import { parseWorkDateToUtc, vnDateString } from "@/lib/time";
 const loginSchema = z.object({
   username: z.string().min(1),
   password: z.string().min(1),
+  clientDevice: z
+    .object({
+      userAgent: z.string().optional(),
+      platform: z.string().optional(),
+      maxTouchPoints: z.number().int().min(0).max(32).optional(),
+      screenWidth: z.number().int().min(0).max(10000).optional(),
+      screenHeight: z.number().int().min(0).max(10000).optional(),
+      userAgentDataMobile: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 function getClientIp(request: NextRequest): string {
@@ -30,6 +40,47 @@ function isMobilePhoneUserAgent(userAgent: string): boolean {
   const isTablet = /ipad|tablet|playbook|silk/.test(ua) || (/android/.test(ua) && !/mobile/.test(ua));
   if (isTablet) return false;
   return /iphone|ipod|android.*mobile|windows phone|blackberry|opera mini|mobile/.test(ua);
+}
+
+function isMobilePhoneByClientSignal(
+  signal:
+    | {
+        userAgent?: string;
+        platform?: string;
+        maxTouchPoints?: number;
+        screenWidth?: number;
+        screenHeight?: number;
+        userAgentDataMobile?: boolean;
+      }
+    | undefined,
+): boolean {
+  if (!signal) return false;
+
+  if (signal.userAgentDataMobile === true) return true;
+
+  const ua = (signal.userAgent ?? "").toLowerCase();
+  if (ua) {
+    const isTablet = /ipad|tablet|playbook|silk/.test(ua) || (/android/.test(ua) && !/mobile/.test(ua));
+    if (!isTablet && /iphone|ipod|android.*mobile|windows phone|blackberry|opera mini|mobile/.test(ua)) {
+      return true;
+    }
+  }
+
+  // iPhone "Request Desktop Website" often reports MacIntel but still has touch points.
+  if ((signal.platform ?? "").toLowerCase() === "macintel" && (signal.maxTouchPoints ?? 0) > 1) {
+    return true;
+  }
+
+  return false;
+}
+
+function isMobilePhoneRequest(request: NextRequest, userAgent: string, clientDevice: z.infer<typeof loginSchema>["clientDevice"]): boolean {
+  if (isMobilePhoneUserAgent(userAgent)) return true;
+
+  const chMobile = request.headers.get("sec-ch-ua-mobile");
+  if (chMobile === "?1") return true;
+
+  return isMobilePhoneByClientSignal(clientDevice);
 }
 
 async function markSharedRisk(userId: string, relatedUserIds: string[]) {
@@ -106,7 +157,7 @@ export async function POST(request: NextRequest) {
     return fail("Too many login attempts", 429, { retryAfterSeconds: limit.retryAfterSeconds });
   }
 
-  if (securityConfig.blockMobilePhoneLogin && isMobilePhoneUserAgent(userAgent)) {
+  if (securityConfig.blockMobilePhoneLogin && isMobilePhoneRequest(request, userAgent, parsed.data.clientDevice)) {
     await prisma.loginAccessLog.create({
       data: {
         usernameInput: parsed.data.username,
@@ -120,11 +171,12 @@ export async function POST(request: NextRequest) {
     return fail("Không cho phép đăng nhập từ điện thoại", 403);
   }
 
-  const user = await prisma.user.findUnique({
-    where: { username: parsed.data.username },
+  const candidates = await prisma.user.findMany({
+    where: { username: parsed.data.username, isActive: true },
+    orderBy: { createdAt: "asc" },
   });
 
-  if (!user || !user.isActive) {
+  if (candidates.length === 0) {
     await prisma.loginAccessLog.create({
       data: {
         usernameInput: parsed.data.username,
@@ -138,7 +190,15 @@ export async function POST(request: NextRequest) {
     return fail("Invalid credentials", 401);
   }
 
-  if (!(await verifyPassword(parsed.data.password, user.passwordHash))) {
+  let user = null as (typeof candidates)[number] | null;
+  for (const candidate of candidates) {
+    if (await verifyPassword(parsed.data.password, candidate.passwordHash)) {
+      user = candidate;
+      break;
+    }
+  }
+
+  if (!user) {
     await prisma.loginAccessLog.create({
       data: {
         usernameInput: parsed.data.username,

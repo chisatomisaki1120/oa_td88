@@ -28,6 +28,25 @@ export default function LoginForm() {
       .catch(() => undefined);
   }, [router]);
 
+  function getClientDeviceSignal() {
+    if (typeof window === "undefined") return undefined;
+
+    const nav = window.navigator as Navigator & {
+      userAgentData?: {
+        mobile?: boolean;
+      };
+    };
+
+    return {
+      userAgent: nav.userAgent ?? "",
+      platform: nav.platform ?? "",
+      maxTouchPoints: typeof nav.maxTouchPoints === "number" ? nav.maxTouchPoints : 0,
+      screenWidth: window.screen?.width ?? 0,
+      screenHeight: window.screen?.height ?? 0,
+      userAgentDataMobile: typeof nav.userAgentData?.mobile === "boolean" ? nav.userAgentData.mobile : undefined,
+    };
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -35,7 +54,7 @@ export default function LoginForm() {
     try {
       await apiJson("/api/auth/login", {
         method: "POST",
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password, clientDevice: getClientDeviceSignal() }),
       });
       const me = await apiJson<SessionMe>("/api/auth/me");
       if (me.user?.role === "EMPLOYEE") router.push("/employee/today");

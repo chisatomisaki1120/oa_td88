@@ -54,8 +54,9 @@ function panelDateText(workDate: string) {
 }
 
 export default function EmployeeToday() {
+  const todayVn = getTodayVN();
   const [month, setMonth] = useState(getTodayVN().slice(0, 7));
-  const [selectedDate, setSelectedDate] = useState(getTodayVN());
+  const [selectedDate, setSelectedDate] = useState(todayVn);
   const [selectedOffDates, setSelectedOffDates] = useState<string[]>([]);
   const [offDateSelectionMode, setOffDateSelectionMode] = useState(false);
   const [rows, setRows] = useState<Day[]>([]);
@@ -69,8 +70,9 @@ export default function EmployeeToday() {
 
   const rowsByDate = useMemo(() => new Map(rows.map((r) => [r.workDate, r])), [rows]);
   const selectedDay = rowsByDate.get(selectedDate) ?? null;
+  const todayDay = rowsByDate.get(todayVn) ?? null;
   const openBreak = useMemo(() => selectedDay?.breakSessions.find((b) => !b.endAt), [selectedDay]);
-  const isToday = selectedDate === getTodayVN();
+  const openBreakToday = useMemo(() => todayDay?.breakSessions.find((b) => !b.endAt), [todayDay]);
   const calendarMeta = useMemo(() => monthMeta(month), [month]);
 
   const cells = useMemo(() => {
@@ -121,7 +123,10 @@ export default function EmployeeToday() {
     setMessage("");
     try {
       await apiJson(url, { method: "POST", body: body ? JSON.stringify(body) : undefined });
-      await load(month);
+      const currentMonth = todayVn.slice(0, 7);
+      setMonth(currentMonth);
+      setSelectedDate(todayVn);
+      await load(currentMonth);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Thao tác thất bại");
     } finally {
@@ -204,7 +209,7 @@ export default function EmployeeToday() {
                     const date = toMonthDate(month, value);
                     const info = rowsByDate.get(date);
                     const isSelected = date === selectedDate;
-                    const isCurrent = date === getTodayVN();
+                    const isCurrent = date === todayVn;
                     const isOffMarked = selectedOffDates.includes(date);
                     return (
                       <td
@@ -242,16 +247,17 @@ export default function EmployeeToday() {
 
           <section className="employee-clock__panel">
             <h4>THẺ CHẤM CÔNG:</h4>
+            {selectedDate !== todayVn && <p className="small">Đánh thẻ chỉ áp dụng cho ngày hôm nay ({todayVn}).</p>}
             <div className="employee-clock__action-row">
-              <span>Lên ca: {selectedDay?.checkInAt ? new Date(selectedDay.checkInAt).toLocaleTimeString("vi-VN") : "--:--:--"}</span>
-              <button disabled={loading || !isToday || Boolean(selectedDay?.checkInAt)} onClick={() => post("/api/attendance/check-in")}>
+              <span>Lên ca: {todayDay?.checkInAt ? new Date(todayDay.checkInAt).toLocaleTimeString("vi-VN") : "--:--:--"}</span>
+              <button disabled={loading || Boolean(todayDay?.checkInAt)} onClick={() => post("/api/attendance/check-in")}>
                 ĐÁNH THẺ
               </button>
             </div>
             <div className="employee-clock__action-row">
-              <span>Xuống ca: {selectedDay?.checkOutAt ? new Date(selectedDay.checkOutAt).toLocaleTimeString("vi-VN") : "--:--:--"}</span>
+              <span>Xuống ca: {todayDay?.checkOutAt ? new Date(todayDay.checkOutAt).toLocaleTimeString("vi-VN") : "--:--:--"}</span>
               <button
-                disabled={loading || !isToday || !Boolean(selectedDay?.checkInAt) || Boolean(selectedDay?.checkOutAt)}
+                disabled={loading || !Boolean(todayDay?.checkInAt) || Boolean(todayDay?.checkOutAt)}
                 onClick={() => post("/api/attendance/check-out")}
               >
                 ĐÁNH THẺ
@@ -306,14 +312,14 @@ export default function EmployeeToday() {
                 <option value="MEAL">{breakTypeLabel("MEAL")}</option>
                 <option value="OTHER">{breakTypeLabel("OTHER")}</option>
               </select>
-              <button disabled={loading || !isToday || Boolean(openBreak)} onClick={() => post("/api/attendance/breaks/start", { breakType })}>
+              <button disabled={loading || Boolean(openBreakToday)} onClick={() => post("/api/attendance/breaks/start", { breakType })}>
                 BẮT ĐẦU
               </button>
-              <button disabled={loading || !isToday || !openBreak} className="secondary" onClick={() => post("/api/attendance/breaks/end")}>
+              <button disabled={loading || !openBreakToday} className="secondary" onClick={() => post("/api/attendance/breaks/end")}>
                 KẾT THÚC
               </button>
             </div>
-            {openBreak && <p className="small">Đang nghỉ từ {new Date(openBreak.startAt).toLocaleTimeString("vi-VN")}</p>}
+            {openBreakToday && <p className="small">Đang nghỉ từ {new Date(openBreakToday.startAt).toLocaleTimeString("vi-VN")}</p>}
           </section>
         </aside>
       </div>
