@@ -71,8 +71,12 @@ export default function EmployeeToday() {
   const rowsByDate = useMemo(() => new Map(rows.map((r) => [r.workDate, r])), [rows]);
   const selectedDay = rowsByDate.get(selectedDate) ?? null;
   const todayDay = rowsByDate.get(todayVn) ?? null;
-  const openBreak = useMemo(() => selectedDay?.breakSessions.find((b) => !b.endAt), [selectedDay]);
-  const openBreakToday = useMemo(() => todayDay?.breakSessions.find((b) => !b.endAt), [todayDay]);
+  const activeShiftDay = useMemo(
+    () => rows.find((r) => Boolean(r.checkInAt) && !r.checkOutAt && !r.isOffDay) ?? null,
+    [rows],
+  );
+  const actionDay = useMemo(() => activeShiftDay ?? todayDay ?? selectedDay, [activeShiftDay, selectedDay, todayDay]);
+  const openBreak = useMemo(() => actionDay?.breakSessions.find((b) => !b.endAt), [actionDay]);
   const calendarMeta = useMemo(() => monthMeta(month), [month]);
 
   const cells = useMemo(() => {
@@ -249,15 +253,15 @@ export default function EmployeeToday() {
             <h4>THẺ CHẤM CÔNG:</h4>
             {selectedDate !== todayVn && <p className="small">Đánh thẻ chỉ áp dụng cho ngày hôm nay ({todayVn}).</p>}
             <div className="employee-clock__action-row">
-              <span>Lên ca: {todayDay?.checkInAt ? new Date(todayDay.checkInAt).toLocaleTimeString("vi-VN") : "--:--:--"}</span>
-              <button disabled={loading || Boolean(todayDay?.checkInAt)} onClick={() => post("/api/attendance/check-in")}>
+              <span>Lên ca: {actionDay?.checkInAt ? new Date(actionDay.checkInAt).toLocaleTimeString("vi-VN") : "--:--:--"}</span>
+              <button disabled={loading || Boolean(todayDay?.checkInAt) || Boolean(activeShiftDay)} onClick={() => post("/api/attendance/check-in")}>
                 ĐÁNH THẺ
               </button>
             </div>
             <div className="employee-clock__action-row">
-              <span>Xuống ca: {todayDay?.checkOutAt ? new Date(todayDay.checkOutAt).toLocaleTimeString("vi-VN") : "--:--:--"}</span>
+              <span>Xuống ca: {actionDay?.checkOutAt ? new Date(actionDay.checkOutAt).toLocaleTimeString("vi-VN") : "--:--:--"}</span>
               <button
-                disabled={loading || !Boolean(todayDay?.checkInAt) || Boolean(todayDay?.checkOutAt)}
+                disabled={loading || !Boolean(actionDay?.checkInAt) || Boolean(actionDay?.checkOutAt) || Boolean(openBreak)}
                 onClick={() => post("/api/attendance/check-out")}
               >
                 ĐÁNH THẺ
@@ -312,14 +316,17 @@ export default function EmployeeToday() {
                 <option value="MEAL">{breakTypeLabel("MEAL")}</option>
                 <option value="OTHER">{breakTypeLabel("OTHER")}</option>
               </select>
-              <button disabled={loading || Boolean(openBreakToday)} onClick={() => post("/api/attendance/breaks/start", { breakType })}>
+              <button
+                disabled={loading || !Boolean(actionDay?.checkInAt) || Boolean(actionDay?.checkOutAt) || Boolean(openBreak)}
+                onClick={() => post("/api/attendance/breaks/start", { breakType })}
+              >
                 BẮT ĐẦU
               </button>
-              <button disabled={loading || !openBreakToday} className="secondary" onClick={() => post("/api/attendance/breaks/end")}>
+              <button disabled={loading || !openBreak} className="secondary" onClick={() => post("/api/attendance/breaks/end")}>
                 KẾT THÚC
               </button>
             </div>
-            {openBreakToday && <p className="small">Đang nghỉ từ {new Date(openBreakToday.startAt).toLocaleTimeString("vi-VN")}</p>}
+            {openBreak && <p className="small">Đang nghỉ từ {new Date(openBreak.startAt).toLocaleTimeString("vi-VN")}</p>}
           </section>
         </aside>
       </div>

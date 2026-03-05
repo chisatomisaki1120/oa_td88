@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "npm run db:prepare && node scripts/next-run-with-env-port.mjs dev",
-    "build": "next build",
+    "build": "npm run db:generate && next build",
     "start": "npm run db:prepare && node scripts/next-run-with-env-port.mjs start",
     "lint": "eslint",
     "db:prepare": "tsx scripts/db-prepare.ts",

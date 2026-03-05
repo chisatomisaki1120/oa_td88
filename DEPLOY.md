@@ -73,7 +73,9 @@ npm run build
 Neu da co du lieu that, KHONG dung `db:setup` vi se reset schema va seed lai. Luc do dung:
 
 ```bash
+npm run db:generate
 npm run db:push
+npm run build
 ```
 
 ## 7. Chay app bang PM2 (lan dau)
@@ -159,6 +161,7 @@ npm run db:export:json -- backups/pre-deploy/db-$(date +%F-%H%M%S).json
 cd /www/wwwroot/oa_td88
 git pull
 npm ci
+npm run db:generate
 npm run db:push
 npm run build
 ```

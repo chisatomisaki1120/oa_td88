@@ -1,6 +1,6 @@
 import { AttendanceDay, AttendanceStatus, BreakSession, BreakType, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { minutesBetween, parseHHMM, vnDateString, vnMinuteOfDay } from "@/lib/time";
+import { minutesBetween, parseHHMM, shiftWorkDate, vnDateString, vnMinuteOfDay } from "@/lib/time";
 
 export type BreakPolicy = {
   wcSmoke: { maxCount: number; maxMinutesEach: number };
@@ -122,6 +122,23 @@ export function computeCheckInStatus(schedule: WorkSchedule | null, checkInAt: D
     : AttendanceStatus.PRESENT;
 }
 
+function isOvernightShift(schedule: WorkSchedule | null): boolean {
+  if (!schedule) return false;
+  return parseHHMM(schedule.endTime) <= parseHHMM(schedule.startTime);
+}
+
+export function resolveWorkDateForShiftMoment(schedule: WorkSchedule | null, now: Date = new Date()): string {
+  const today = vnDateString(now);
+  if (!schedule || !isOvernightShift(schedule)) return today;
+
+  const nowMinute = vnMinuteOfDay(now);
+  const shiftEndWithGrace = parseHHMM(schedule.endTime) + schedule.earlyLeaveGraceMinutes;
+  if (nowMinute <= shiftEndWithGrace) {
+    return shiftWorkDate(today, -1);
+  }
+  return today;
+}
+
 function withEarlyLeaveWarning(
   status: AttendanceStatus,
   schedule: WorkSchedule | null,
@@ -182,8 +199,7 @@ export async function recalculateAttendanceDay(
   });
 }
 
-export async function getOrCreateTodayAttendance(tx: Prisma.TransactionClient, userId: string): Promise<AttendanceDay> {
-  const workDate = vnDateString();
+export async function getOrCreateAttendanceByWorkDate(tx: Prisma.TransactionClient, userId: string, workDate: string): Promise<AttendanceDay> {
   const existing = await tx.attendanceDay.findUnique({ where: { userId_workDate: { userId, workDate } } });
   if (existing) return existing;
 
@@ -196,4 +212,28 @@ export async function getOrCreateTodayAttendance(tx: Prisma.TransactionClient, u
       lockedMonth: false,
     },
   });
+}
+
+export async function getOrCreateTodayAttendance(tx: Prisma.TransactionClient, userId: string): Promise<AttendanceDay> {
+  return getOrCreateAttendanceByWorkDate(tx, userId, vnDateString());
+}
+
+export async function getOrCreateCurrentShiftAttendance(tx: Prisma.TransactionClient, userId: string, now: Date = new Date()): Promise<AttendanceDay> {
+  const today = vnDateString(now);
+  const yesterday = shiftWorkDate(today, -1);
+
+  const openAttendance = await tx.attendanceDay.findFirst({
+    where: {
+      userId,
+      checkInAt: { not: null },
+      checkOutAt: null,
+      workDate: { in: [today, yesterday] },
+    },
+    orderBy: { workDate: "desc" },
+  });
+  if (openAttendance) return openAttendance;
+
+  const schedule = await getActiveShiftForUser(userId, now);
+  const workDate = resolveWorkDateForShiftMoment(schedule, now);
+  return getOrCreateAttendanceByWorkDate(tx, userId, workDate);
 }

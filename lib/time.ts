@@ -54,3 +54,13 @@ export function parseWorkDateToUtc(workDate: string): Date {
 export function monthFromWorkDate(workDate: string): string {
   return workDate.slice(0, 7);
 }
+
+export function shiftWorkDate(workDate: string, deltaDays: number): string {
+  const [year, month, day] = workDate.split("-").map(Number);
+  const utcDate = new Date(Date.UTC(year, month - 1, day));
+  utcDate.setUTCDate(utcDate.getUTCDate() + deltaDays);
+  const y = utcDate.getUTCFullYear();
+  const m = String(utcDate.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(utcDate.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
