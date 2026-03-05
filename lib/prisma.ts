@@ -1,6 +1,9 @@
 import path from "node:path";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { PrismaClient } from "@prisma/client";
+import { validateEnv } from "@/lib/env";
+
+validateEnv();
 
 function sqliteAdapterUrl() {
   const raw = process.env.DATABASE_URL ?? "file:./prisma/dev.db";

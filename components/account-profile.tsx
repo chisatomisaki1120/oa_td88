@@ -4,11 +4,27 @@ import { FormEvent, useEffect, useState } from "react";
 import { apiJson } from "@/lib/client-api";
 import { roleLabel } from "@/lib/display-labels";
 
+type Stats = {
+  month: string;
+  totalDays: number;
+  presentDays: number;
+  lateDays: number;
+  earlyLeaveDays: number;
+  absentDays: number;
+  offDays: number;
+  deductedDays: number;
+  totalWorkedMinutes: number;
+  warningCount: number;
+  allowedOffDaysPerMonth: number;
+};
+
 type Profile = {
   id: string;
   username: string;
   fullName: string;
   email: string | null;
+  phone: string | null;
+  address: string | null;
   department: string | null;
   role: "SUPER_ADMIN" | "ADMIN" | "EMPLOYEE";
   workStartTime: string | null;
@@ -17,6 +33,7 @@ type Profile = {
   earlyLeaveGraceMinutes: number;
   workMode: "ONLINE" | "OFFLINE";
   allowedOffDaysPerMonth: number;
+  stats: Stats;
 };
 
 export default function AccountProfile() {
@@ -52,6 +69,8 @@ export default function AccountProfile() {
         body: JSON.stringify({
           fullName: profile.fullName,
           email: profile.email ?? "",
+          phone: profile.phone ?? "",
+          address: profile.address ?? "",
           department: profile.department ?? "",
           workStartTime: profile.workStartTime ?? "",
           workEndTime: profile.workEndTime ?? "",
@@ -76,6 +95,7 @@ export default function AccountProfile() {
   }
 
   return (
+    <>
     <div className="card">
       <h3 style={{ marginTop: 0 }}>Tài khoản của tôi</h3>
       <form onSubmit={saveProfile}>
@@ -101,6 +121,28 @@ export default function AccountProfile() {
             value={profile.department ?? ""}
             onChange={(e) => setProfile((p) => (p ? { ...p, department: e.target.value } : p))}
             placeholder="Chức vụ"
+          />
+        </div>
+        <div className="row" style={{ marginBottom: 10 }}>
+          <input
+            type="tel"
+            value={profile.phone ?? ""}
+            onChange={(e) => setProfile((p) => (p ? { ...p, phone: e.target.value } : p))}
+            placeholder="Số điện thoại"
+          />
+          <input
+            type="email"
+            value={profile.email ?? ""}
+            onChange={(e) => setProfile((p) => (p ? { ...p, email: e.target.value } : p))}
+            placeholder="Email"
+          />
+        </div>
+        <div style={{ marginBottom: 10 }}>
+          <input
+            value={profile.address ?? ""}
+            onChange={(e) => setProfile((p) => (p ? { ...p, address: e.target.value } : p))}
+            placeholder="Địa chỉ"
+            style={{ width: "100%" }}
           />
         </div>
         <div className="row" style={{ marginBottom: 10 }}>
@@ -149,5 +191,22 @@ export default function AccountProfile() {
       {message && <p style={{ color: "#047857" }}>{message}</p>}
       {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
     </div>
+
+    {profile.stats && (
+      <div className="card">
+        <h3 style={{ marginTop: 0 }}>Tổng hợp tháng {profile.stats.month}</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
+          <div><span className="small">Đi làm đúng giờ</span><br /><strong>{profile.stats.presentDays}</strong> ngày</div>
+          <div><span className="small">Đi muộn</span><br /><strong style={{ color: "#b91c1c" }}>{profile.stats.lateDays}</strong> ngày</div>
+          <div><span className="small">Về sớm</span><br /><strong>{profile.stats.earlyLeaveDays}</strong> ngày</div>
+          <div><span className="small">Vắng mặt</span><br /><strong style={{ color: "#b91c1c" }}>{profile.stats.absentDays}</strong> ngày</div>
+          <div><span className="small">Nghỉ phép</span><br /><strong>{profile.stats.offDays}</strong> / {profile.stats.allowedOffDaysPerMonth} ngày</div>
+          <div><span className="small">Nghỉ trừ lương</span><br /><strong style={{ color: profile.stats.deductedDays > 0 ? "#b91c1c" : undefined }}>{profile.stats.deductedDays}</strong> ngày</div>
+          <div><span className="small">Tổng giờ làm</span><br /><strong>{Math.floor(profile.stats.totalWorkedMinutes / 60)}h{profile.stats.totalWorkedMinutes % 60}p</strong></div>
+          <div><span className="small">Ngày có cảnh báo</span><br /><strong style={{ color: profile.stats.warningCount > 0 ? "#b91c1c" : undefined }}>{profile.stats.warningCount}</strong> ngày</div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

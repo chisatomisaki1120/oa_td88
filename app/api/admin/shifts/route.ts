@@ -5,15 +5,21 @@ import { fail, ok } from "@/lib/api";
 import { validateCsrf } from "@/lib/csrf";
 import { prisma } from "@/lib/prisma";
 import { requireRoleRequest } from "@/lib/rbac";
-import { DEFAULT_BREAK_POLICY } from "@/lib/attendance";
+import { DEFAULT_BREAK_POLICY, type BreakPolicy } from "@/lib/attendance";
+import { TIME_REGEX } from "@/lib/constants";
+
+const breakPolicySchema = z.object({
+  wcSmoke: z.object({ maxCount: z.number().int().min(0), maxMinutesEach: z.number().int().min(0) }),
+  meal: z.object({ maxCount: z.number().int().min(0), maxMinutesEach: z.number().int().min(0) }),
+});
 
 const schema = z.object({
-  name: z.string().min(1),
-  startTime: z.string().regex(/^\d{2}:\d{2}$/),
-  endTime: z.string().regex(/^\d{2}:\d{2}$/),
+  name: z.string().min(1).max(100),
+  startTime: z.string().regex(TIME_REGEX, "Giờ không hợp lệ (HH:MM)"),
+  endTime: z.string().regex(TIME_REGEX, "Giờ không hợp lệ (HH:MM)"),
   lateGraceMinutes: z.number().int().min(0).default(5),
   earlyLeaveGraceMinutes: z.number().int().min(0).default(5),
-  breakPolicyJson: z.any().optional(),
+  breakPolicyJson: breakPolicySchema.optional(),
   isActive: z.boolean().default(true),
 });
 

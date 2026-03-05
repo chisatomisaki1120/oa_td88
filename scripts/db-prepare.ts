@@ -21,6 +21,17 @@ function runLoginSecurityUpgrade() {
   execSync("npm run db:upgrade:login-security", { stdio: "inherit" });
 }
 
+function syncSchema() {
+  console.log("Syncing database schema with current Prisma schema...");
+  try {
+    execSync("npx prisma db push --accept-data-loss --config prisma.config.ts", {
+      stdio: "inherit",
+    });
+  } catch {
+    console.warn("Warning: schema sync failed. You may need to run 'npx prisma db push --config prisma.config.ts' manually.");
+  }
+}
+
 const root = process.cwd();
 const databaseUrl = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
 const dbPath = databaseUrl.replace(/^file:/, "");
@@ -28,6 +39,8 @@ const resolvedDbPath = path.isAbsolute(dbPath) ? dbPath : path.join(root, dbPath
 
 if (hasExistingData(resolvedDbPath)) {
   console.log(`Using existing database at ${resolvedDbPath}`);
+  execSync("npm run db:generate", { stdio: "inherit" });
+  syncSchema();
   runLoginSecurityUpgrade();
   process.exit(0);
 }

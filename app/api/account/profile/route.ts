@@ -7,11 +7,14 @@ import { validateCsrf } from "@/lib/csrf";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/rbac";
 import { sanitizeUserForAudit } from "@/lib/audit";
+import { vnMonthString } from "@/lib/time";
 
 const updateSchema = z
   .object({
     fullName: z.string().min(1).optional(),
     email: z.string().email().optional().or(z.literal("")),
+    phone: z.string().max(20).optional().or(z.literal("")),
+    address: z.string().max(200).optional().or(z.literal("")),
     department: z.string().optional(),
     currentPassword: z.string().min(1).optional(),
     newPassword: z.string().min(6).optional(),
@@ -37,6 +40,8 @@ export async function GET(request: NextRequest) {
       username: true,
       fullName: true,
       email: true,
+      phone: true,
+      address: true,
       department: true,
       role: true,
       workStartTime: true,
@@ -48,7 +53,32 @@ export async function GET(request: NextRequest) {
     },
   });
 
-  return ok(me);
+  // Personal attendance stats for current month
+  const month = vnMonthString();
+  const monthStart = `${month}-01`;
+  const monthEnd = `${month}-31`;
+  const attendance = await prisma.attendanceDay.findMany({
+    where: { userId: user.id, workDate: { gte: monthStart, lte: monthEnd } },
+    select: { status: true, isOffDay: true, isDeducted: true, workedMinutes: true, warningFlagsJson: true },
+  });
+
+  const stats = {
+    month,
+    totalDays: attendance.length,
+    presentDays: attendance.filter((a) => a.status === "PRESENT").length,
+    lateDays: attendance.filter((a) => a.status === "LATE").length,
+    earlyLeaveDays: attendance.filter((a) => a.status === "EARLY_LEAVE").length,
+    absentDays: attendance.filter((a) => a.status === "ABSENT").length,
+    offDays: attendance.filter((a) => a.isOffDay).length,
+    deductedDays: attendance.filter((a) => a.isDeducted).length,
+    totalWorkedMinutes: attendance.reduce((sum, a) => sum + (a.workedMinutes ?? 0), 0),
+    warningCount: attendance.filter((a) => {
+      try { const w = JSON.parse(a.warningFlagsJson); return Array.isArray(w) && w.length > 0; } catch { return false; }
+    }).length,
+    allowedOffDaysPerMonth: me?.allowedOffDaysPerMonth ?? 2,
+  };
+
+  return ok({ ...me, stats });
 }
 
 export async function PATCH(request: NextRequest) {
@@ -70,6 +100,8 @@ export async function PATCH(request: NextRequest) {
   const data: Record<string, unknown> = {};
   if (payload.data.fullName !== undefined) data.fullName = payload.data.fullName;
   if (payload.data.email !== undefined) data.email = payload.data.email || null;
+  if (payload.data.phone !== undefined) data.phone = payload.data.phone || null;
+  if (payload.data.address !== undefined) data.address = payload.data.address || null;
   if (payload.data.department !== undefined) data.department = payload.data.department || null;
   if (payload.data.newPassword) data.passwordHash = await hashPassword(payload.data.newPassword);
 
@@ -87,6 +119,8 @@ export async function PATCH(request: NextRequest) {
       username: true,
       fullName: true,
       email: true,
+      phone: true,
+      address: true,
       department: true,
       role: true,
       workStartTime: true,

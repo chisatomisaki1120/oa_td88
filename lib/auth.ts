@@ -4,10 +4,10 @@ import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { SESSION_DAYS, SESSION_TOUCH_INTERVAL_MS } from "@/lib/constants";
 
 export const SESSION_COOKIE = "oa_session";
-const SESSION_DAYS = 14;
-const SESSION_TOUCH_INTERVAL_MS = 60 * 1000;
+const SHORT_SESSION_DAYS = 1;
 
 export type SessionUser = {
   id: string;
@@ -37,10 +37,11 @@ type SessionMeta = {
   isSharedDevice?: boolean;
 };
 
-export async function createSession(userId: string, meta: SessionMeta): Promise<string> {
+export async function createSession(userId: string, meta: SessionMeta & { rememberMe?: boolean }): Promise<string> {
   const rawToken = randomBytes(32).toString("hex");
   const tokenHash = hashToken(rawToken);
-  const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
+  const days = meta.rememberMe ? SESSION_DAYS : SHORT_SESSION_DAYS;
+  const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
   await prisma.authSession.create({
     data: {
       userId,

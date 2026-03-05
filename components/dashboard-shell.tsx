@@ -1,5 +1,6 @@
 import Link from "next/link";
 import LogoutButton from "@/components/logout-button";
+import ThemeToggle from "@/components/theme-toggle";
 import { roleLabel } from "@/lib/display-labels";
 
 type Props = {
@@ -19,7 +20,10 @@ export default function DashboardShell({ fullName, role, links, children }: Reac
               {fullName} ({roleLabel(role)})
             </p>
           </div>
-          <LogoutButton />
+          <div className="row">
+            <ThemeToggle />
+            <LogoutButton />
+          </div>
         </div>
       </div>
       <div className="nav">

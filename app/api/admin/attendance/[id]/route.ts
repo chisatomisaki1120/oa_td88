@@ -6,12 +6,13 @@ import { validateCsrf } from "@/lib/csrf";
 import { prisma } from "@/lib/prisma";
 import { requireRoleRequest } from "@/lib/rbac";
 import { assertMonthUnlocked, getActiveShiftForUser, recalculateAttendanceDay } from "@/lib/attendance";
+import { WARNING_FLAGS } from "@/lib/constants";
 
 const schema = z.object({
   checkInAt: z.string().datetime().nullable().optional(),
   checkOutAt: z.string().datetime().nullable().optional(),
   status: z.nativeEnum(AttendanceStatus).optional(),
-  warningFlagsJson: z.array(z.string()).optional(),
+  warningFlagsJson: z.array(z.enum(WARNING_FLAGS)).optional(),
 });
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

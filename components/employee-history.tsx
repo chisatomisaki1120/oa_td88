@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { apiJson } from "@/lib/client-api";
-import { attendanceStatusLabel } from "@/lib/display-labels";
+import { attendanceStatusLabel, parseWarnings } from "@/lib/display-labels";
+import { ErrorMessage, EmptyState } from "@/components/ui-feedback";
 
 type Day = {
   id: string;
@@ -13,16 +14,6 @@ type Day = {
   workedMinutes: number | null;
   warningFlagsJson: string | string[];
 };
-
-function parseWarnings(raw: string | string[] | null | undefined): string[] {
-  if (!raw) return [];
-  if (Array.isArray(raw)) return raw;
-  try {
-    return JSON.parse(raw) as string[];
-  } catch {
-    return [];
-  }
-}
 
 export default function EmployeeHistory() {
   const [month, setMonth] = useState(new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).slice(0, 7));
@@ -51,7 +42,7 @@ export default function EmployeeHistory() {
       <div className="row" style={{ marginBottom: 12 }}>
         <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
       </div>
-      {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
+      {error && <ErrorMessage error={error} />}
       <table>
         <thead>
           <tr>
@@ -74,6 +65,7 @@ export default function EmployeeHistory() {
               <td>{parseWarnings(r.warningFlagsJson).join(", ") || "-"}</td>
             </tr>
           ))}
+          {rows.length === 0 && <EmptyState />}
         </tbody>
       </table>
     </div>

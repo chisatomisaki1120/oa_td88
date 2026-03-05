@@ -1,3 +1,4 @@
+import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
@@ -101,6 +102,16 @@ export async function POST(request: NextRequest) {
     return fail(`Import thất bại: ${error instanceof Error ? error.message : "Unknown error"}`, 400);
   } finally {
     db.close();
+  }
+
+  // Sync schema: add any columns missing from the old backup
+  try {
+    execSync("npx prisma db push --accept-data-loss --config prisma.config.ts", {
+      cwd: process.cwd(),
+      stdio: "pipe",
+    });
+  } catch {
+    // non-fatal: data is already imported
   }
 
   return ok({

@@ -64,3 +64,11 @@ export function shiftWorkDate(workDate: string, deltaDays: number): string {
   const d = String(utcDate.getUTCDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 }
+
+/** Validate that a YYYY-MM-DD string is a real calendar date */
+export function isValidDate(dateStr: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const d = new Date(year, month - 1, day);
+  return d.getFullYear() === year && d.getMonth() === month - 1 && d.getDate() === day;
+}

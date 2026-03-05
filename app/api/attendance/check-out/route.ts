@@ -4,11 +4,15 @@ import { getSessionUserFromRequest } from "@/lib/auth";
 import { assertMonthUnlocked, getActiveShiftForUser, getOrCreateCurrentShiftAttendance, recalculateAttendanceDay } from "@/lib/attendance";
 import { prisma } from "@/lib/prisma";
 import { validateCsrf } from "@/lib/csrf";
+import { consumeApiRateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   if (!validateCsrf(request)) return fail("Invalid CSRF token", 403);
   const user = await getSessionUserFromRequest(request);
   if (!user) return fail("Unauthorized", 401);
+
+  const rl = consumeApiRateLimit(`checkout:${user.id}`);
+  if (!rl.allowed) return fail(`Vui lòng thử lại sau ${rl.retryAfterSeconds}s`, 429);
 
   const result = await prisma.$transaction(async (tx) => {
     const today = await getOrCreateCurrentShiftAttendance(tx, user.id, new Date());

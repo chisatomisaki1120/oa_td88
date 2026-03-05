@@ -7,16 +7,17 @@ import { validateCsrf } from "@/lib/csrf";
 import { prisma } from "@/lib/prisma";
 import { requireRoleRequest } from "@/lib/rbac";
 import { sanitizeUserForAudit } from "@/lib/audit";
+import { TIME_REGEX, PASSWORD_MIN_LENGTH } from "@/lib/constants";
 
 const updateSchema = z.object({
-  fullName: z.string().min(1).optional(),
+  fullName: z.string().min(1).max(100).optional(),
   email: z.string().email().optional().or(z.literal("")),
-  department: z.string().optional(),
+  department: z.string().max(50).optional(),
   role: z.nativeEnum(Role).optional(),
   isActive: z.boolean().optional(),
-  password: z.string().min(6).optional(),
-  workStartTime: z.string().regex(/^\d{2}:\d{2}$/).optional().or(z.literal("")),
-  workEndTime: z.string().regex(/^\d{2}:\d{2}$/).optional().or(z.literal("")),
+  password: z.string().min(PASSWORD_MIN_LENGTH).max(128).optional(),
+  workStartTime: z.string().regex(TIME_REGEX, "Giờ không hợp lệ (HH:MM)").optional().or(z.literal("")),
+  workEndTime: z.string().regex(TIME_REGEX, "Giờ không hợp lệ (HH:MM)").optional().or(z.literal("")),
   lateGraceMinutes: z.number().int().min(0).max(180).optional(),
   earlyLeaveGraceMinutes: z.number().int().min(0).max(180).optional(),
   workMode: z.nativeEnum(WorkMode).optional(),
@@ -103,7 +104,12 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     return fail("Admin không được xóa SuperAdmin", 403);
   }
 
-  await prisma.user.delete({ where: { id } });
+  await prisma.user.update({
+    where: { id },
+    data: { deletedAt: new Date(), isActive: false },
+  });
+
+  await prisma.authSession.deleteMany({ where: { userId: id } });
 
   await prisma.auditLog.create({
     data: {

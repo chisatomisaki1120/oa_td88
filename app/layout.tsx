@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { ErrorBoundary } from "@/components/ui-feedback";
+import ThemeProvider from "@/components/theme-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -8,8 +10,19 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="vi">
-      <body>{children}</body>
+    <html lang="vi" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem("oa_theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t)}catch(e){}})()`,
+          }}
+        />
+      </head>
+      <body>
+        <ThemeProvider>
+          <ErrorBoundary>{children}</ErrorBoundary>
+        </ThemeProvider>
+      </body>
     </html>
   );
 }

@@ -4,6 +4,7 @@ import { LoginConflictType } from "@prisma/client";
 import { z } from "zod";
 import { ok, fail } from "@/lib/api";
 import { createSession, SESSION_COOKIE, sessionCookieOptions, verifyPassword } from "@/lib/auth";
+import { SESSION_DAYS } from "@/lib/constants";
 import { getLoginSecurityConfig } from "@/lib/login-security-config";
 import { prisma } from "@/lib/prisma";
 import { consumeLoginAttempt } from "@/lib/rate-limit";
@@ -13,6 +14,7 @@ import { parseWorkDateToUtc, vnDateString } from "@/lib/time";
 const loginSchema = z.object({
   username: z.string().min(1),
   password: z.string().min(1),
+  rememberMe: z.boolean().optional(),
   clientDevice: z
     .object({
       userAgent: z.string().optional(),
@@ -338,12 +340,14 @@ export async function POST(request: NextRequest) {
     await prisma.authSession.deleteMany({ where: { userId: user.id } });
   }
 
+  const rememberMe = parsed.data.rememberMe === true;
   const token = await createSession(user.id, {
     ipAddress: ip,
     userAgent,
     deviceKey,
     isSharedIp,
     isSharedDevice,
+    rememberMe,
   });
 
   await prisma.loginAccessLog.create({
@@ -369,7 +373,8 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)));
+  const sessionDays = rememberMe ? SESSION_DAYS : 1;
+  response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions(new Date(Date.now() + sessionDays * 24 * 60 * 60 * 1000)));
   response.cookies.set(CSRF_COOKIE, createCsrfToken(), {
     httpOnly: false,
     sameSite: "lax",

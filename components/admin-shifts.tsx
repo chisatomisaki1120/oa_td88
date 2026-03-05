@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { apiJson } from "@/lib/client-api";
+import { ErrorMessage, EmptyState } from "@/components/ui-feedback";
 
 type Shift = {
   id: string;
@@ -106,7 +107,7 @@ export default function AdminShifts() {
           <input type="date" value={assign.effectiveFrom} onChange={(e) => setAssign((a) => ({ ...a, effectiveFrom: e.target.value }))} />
           <button type="submit">Gán</button>
         </form>
-        {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
+        {error && <ErrorMessage error={error} />}
       </div>
 
       <div className="card">
@@ -127,6 +128,7 @@ export default function AdminShifts() {
                 <td>{s.endTime}</td>
               </tr>
             ))}
+            {shifts.length === 0 && <EmptyState />}
           </tbody>
         </table>
       </div>

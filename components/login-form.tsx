@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiJson } from "@/lib/client-api";
+import { ErrorMessage } from "@/components/ui-feedback";
 
 type SessionMe = {
   user: {
@@ -14,6 +15,7 @@ type SessionMe = {
 export default function LoginForm() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -54,7 +56,7 @@ export default function LoginForm() {
     try {
       await apiJson("/api/auth/login", {
         method: "POST",
-        body: JSON.stringify({ username, password, clientDevice: getClientDeviceSignal() }),
+        body: JSON.stringify({ username, password, rememberMe, clientDevice: getClientDeviceSignal() }),
       });
       const me = await apiJson<SessionMe>("/api/auth/me");
       if (me.user?.role === "EMPLOYEE") router.push("/employee/today");
@@ -73,15 +75,21 @@ export default function LoginForm() {
         <h1 style={{ marginTop: 0 }}>Đăng nhập hệ thống</h1>
         <form onSubmit={onSubmit}>
           <div style={{ marginBottom: 12 }}>
-            <label>Tên đăng nhập</label>
-            <input value={username} onChange={(e) => setUsername(e.target.value)} required style={{ width: "100%" }} />
+            <label htmlFor="login-username">Tên đăng nhập</label>
+            <input id="login-username" value={username} onChange={(e) => setUsername(e.target.value)} required style={{ width: "100%" }} autoComplete="username" aria-required="true" />
           </div>
           <div style={{ marginBottom: 12 }}>
-            <label>Mật khẩu</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required style={{ width: "100%" }} />
+            <label htmlFor="login-password">Mật khẩu</label>
+            <input id="login-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required style={{ width: "100%" }} autoComplete="current-password" aria-required="true" />
           </div>
-          {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
-          <button type="submit" disabled={loading} style={{ width: "100%" }}>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+              <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
+              Ghi nhớ đăng nhập
+            </label>
+          </div>
+          {error && <ErrorMessage error={error} />}
+          <button type="submit" disabled={loading} style={{ width: "100%" }} aria-busy={loading}>
             {loading ? "Đang xử lý..." : "Đăng nhập"}
           </button>
         </form>

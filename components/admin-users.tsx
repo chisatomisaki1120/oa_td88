@@ -4,6 +4,7 @@ import { FormEvent, Fragment, useEffect, useState } from "react";
 import type { Role } from "@prisma/client";
 import { apiJson } from "@/lib/client-api";
 import { roleLabel, workModeLabel } from "@/lib/display-labels";
+import { ErrorMessage, SuccessMessage, EmptyState } from "@/components/ui-feedback";
 
 type User = {
   id: string;
@@ -43,6 +44,8 @@ export default function AdminUsers({ actorRole }: Props) {
 
   const [rows, setRows] = useState<User[]>([]);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     username: "",
     password: "",
@@ -88,6 +91,8 @@ export default function AdminUsers({ actorRole }: Props) {
   async function createUser(e: FormEvent) {
     e.preventDefault();
     setError("");
+    setMessage("");
+    setLoading(true);
     try {
       await apiJson("/api/admin/users", {
         method: "POST",
@@ -107,8 +112,11 @@ export default function AdminUsers({ actorRole }: Props) {
         allowedOffDaysPerMonth: 2,
       });
       await load();
+      setMessage("Tạo tài khoản thành công");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Tạo user thất bại");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -149,6 +157,8 @@ export default function AdminUsers({ actorRole }: Props) {
   async function saveEdit() {
     if (!editingId) return;
     setError("");
+    setMessage("");
+    setLoading(true);
     try {
       await apiJson(`/api/admin/users/${editingId}`, {
         method: "PATCH",
@@ -159,8 +169,11 @@ export default function AdminUsers({ actorRole }: Props) {
       });
       setEditingId("");
       await load();
+      setMessage("Cập nhật tài khoản thành công");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Cập nhật tài khoản thất bại");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -207,9 +220,10 @@ export default function AdminUsers({ actorRole }: Props) {
             onChange={(e) => setForm((f) => ({ ...f, allowedOffDaysPerMonth: Number(e.target.value) }))}
             style={{ width: 100 }}
           />
-          <button type="submit">Tạo</button>
+          <button type="submit" disabled={loading}>{loading ? "Đang tạo..." : "Tạo"}</button>
         </form>
-        {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
+        {error && <ErrorMessage error={error} />}
+        {message && <SuccessMessage message={message} />}
       </div>
 
       <div className="card">

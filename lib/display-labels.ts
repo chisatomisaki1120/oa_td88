@@ -53,3 +53,30 @@ export function breakTypeLabel(type: string) {
       return type;
   }
 }
+
+export function warningLabel(warning: string) {
+  switch (warning) {
+    case "WC_SMOKE_COUNT_EXCEEDED":
+      return "Vượt số lần vệ sinh/hút thuốc";
+    case "MEAL_COUNT_EXCEEDED":
+      return "Vượt số lần ăn";
+    case "WC_SMOKE_DURATION_EXCEEDED":
+      return "Vượt thời gian vệ sinh/hút thuốc";
+    case "MEAL_DURATION_EXCEEDED":
+      return "Vượt thời gian ăn";
+    case "EARLY_LEAVE":
+      return "Về sớm";
+    default:
+      return warning;
+  }
+}
+
+export function parseWarnings(raw: string | string[] | null | undefined): string[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  try {
+    return JSON.parse(raw) as string[];
+  } catch {
+    return [];
+  }
+}

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import DashboardShell from "@/components/dashboard-shell";
 import AccountProfile from "@/components/account-profile";
+import SessionManager from "@/components/session-manager";
 import { getSessionUserFromCookies } from "@/lib/auth";
 
 export default async function AccountPage() {
@@ -22,6 +23,7 @@ export default async function AccountPage() {
   return (
     <DashboardShell fullName={user.fullName} role={user.role} links={links}>
       <AccountProfile />
+      <SessionManager />
     </DashboardShell>
   );
 }

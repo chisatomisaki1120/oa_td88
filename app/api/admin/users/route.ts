@@ -7,17 +7,18 @@ import { validateCsrf } from "@/lib/csrf";
 import { prisma } from "@/lib/prisma";
 import { requireRoleRequest } from "@/lib/rbac";
 import { vnDateString } from "@/lib/time";
+import { TIME_REGEX, PASSWORD_MIN_LENGTH } from "@/lib/constants";
 
 const createSchema = z.object({
-  username: z.string().min(3),
-  password: z.string().min(6),
-  fullName: z.string().min(1),
+  username: z.string().min(3).max(50),
+  password: z.string().min(PASSWORD_MIN_LENGTH).max(128),
+  fullName: z.string().min(1).max(100),
   email: z.string().email().optional().or(z.literal("")),
-  department: z.string().optional(),
+  department: z.string().max(50).optional(),
   role: z.nativeEnum(Role),
   isActive: z.boolean().default(true),
-  workStartTime: z.string().regex(/^\d{2}:\d{2}$/).optional().or(z.literal("")),
-  workEndTime: z.string().regex(/^\d{2}:\d{2}$/).optional().or(z.literal("")),
+  workStartTime: z.string().regex(TIME_REGEX, "Giờ không hợp lệ (HH:MM)").optional().or(z.literal("")),
+  workEndTime: z.string().regex(TIME_REGEX, "Giờ không hợp lệ (HH:MM)").optional().or(z.literal("")),
   lateGraceMinutes: z.number().int().min(0).max(180).default(5),
   earlyLeaveGraceMinutes: z.number().int().min(0).max(180).default(5),
   workMode: z.nativeEnum(WorkMode).default(WorkMode.OFFLINE),
@@ -29,7 +30,10 @@ export async function GET(request: NextRequest) {
   if (!actor) return fail("Forbidden", 403);
 
   const users = await prisma.user.findMany({
-    where: actor.role === Role.SUPER_ADMIN ? undefined : { role: { not: Role.SUPER_ADMIN } },
+    where: {
+      deletedAt: null,
+      ...(actor.role === Role.SUPER_ADMIN ? {} : { role: { not: Role.SUPER_ADMIN } }),
+    },
     select: {
       id: true,
       username: true,

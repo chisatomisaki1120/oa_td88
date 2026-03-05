@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
@@ -103,6 +104,17 @@ function main() {
     throw error;
   } finally {
     db.close();
+  }
+
+  // Sync schema: add any columns missing from the old backup
+  try {
+    execSync("npx prisma db push --accept-data-loss --config prisma.config.ts", {
+      cwd: process.cwd(),
+      stdio: "inherit",
+    });
+    console.log("Schema synced with current Prisma schema.");
+  } catch {
+    console.warn("Warning: could not sync schema. Run 'npx prisma db push --config prisma.config.ts' manually.");
   }
 
   console.log(`Imported database JSON from ${resolvedInput}`);

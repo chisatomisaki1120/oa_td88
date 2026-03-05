@@ -43,6 +43,8 @@ model User {
   passwordHash      String
   fullName          String
   email             String?
+  phone             String?
+  address           String?
   department        String?
   workStartTime     String?
   workEndTime       String?
@@ -56,6 +58,7 @@ model User {
   hasSharedLoginRisk Boolean                @default(false)
   createdAt         DateTime                @default(now())
   updatedAt         DateTime                @updatedAt
+  deletedAt         DateTime?
   attendanceDays    AttendanceDay[]
   shiftAssignments  EmployeeShiftAssignment[]
   authSessions      AuthSession[]
@@ -152,7 +155,7 @@ model MonthlyClosure {
 
 model AuditLog {
   id         String   @id @default(cuid())
-  actorUserId String
+  actorUserId String?
   action     String
   entityType String
   entityId   String
@@ -160,7 +163,7 @@ model AuditLog {
   afterJson  String?
   createdAt  DateTime @default(now())
 
-  actor      User     @relation(fields: [actorUserId], references: [id], onDelete: Cascade)
+  actor      User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
 
   @@index([entityType, entityId])
   @@index([createdAt])
