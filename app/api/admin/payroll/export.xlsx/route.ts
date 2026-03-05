@@ -4,6 +4,7 @@ import { Role } from "@prisma/client";
 import { fail } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { requireRoleRequest } from "@/lib/rbac";
+import { parseHHMM, fmtMinutesToHours } from "@/lib/time";
 
 function parseWarnings(raw: string): string[] {
   try { return JSON.parse(raw) as string[]; } catch { return []; }
@@ -112,7 +113,7 @@ export async function GET(request: NextRequest) {
       s.fullName, s.username, s.department,
       s.presentDays, s.lateDays, s.earlyLeaveDays, s.absentDays,
       s.offDaysPaid, s.offDaysDeducted,
-      formatHours(s.totalWorkedMinutes), formatHours(s.overtimeMinutes),
+      fmtMinutesToHours(s.totalWorkedMinutes), fmtMinutesToHours(s.overtimeMinutes),
       s.warningDays, Math.max(0, s.allowedOff - s.offDaysPaid),
     ]),
   ];
@@ -139,13 +140,3 @@ export async function GET(request: NextRequest) {
   });
 }
 
-function parseHHMM(value: string): number {
-  const [h, m] = value.split(":").map(Number);
-  return h * 60 + m;
-}
-
-function formatHours(minutes: number): string {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return `${h}h${m > 0 ? m + "p" : ""}`;
-}

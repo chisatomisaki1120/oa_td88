@@ -72,3 +72,35 @@ export function isValidDate(dateStr: string): boolean {
   const d = new Date(year, month - 1, day);
   return d.getFullYear() === year && d.getMonth() === month - 1 && d.getDate() === day;
 }
+
+// ── Client-side display helpers (24h, VN timezone) ──
+
+const DATETIME_FMT: Intl.DateTimeFormatOptions = {
+  timeZone: VN_TIMEZONE,
+  year: "numeric", month: "2-digit", day: "2-digit",
+  hour: "2-digit", minute: "2-digit", second: "2-digit",
+  hour12: false,
+};
+
+const TIME_FMT: Intl.DateTimeFormatOptions = {
+  timeZone: VN_TIMEZONE,
+  hour: "2-digit", minute: "2-digit", second: "2-digit",
+  hour12: false,
+};
+
+/** Format a date value to "DD/MM/YYYY, HH:mm:ss" in VN timezone, 24h */
+export function fmtDateTime(value: string | Date): string {
+  return new Date(value).toLocaleString("vi-VN", DATETIME_FMT);
+}
+
+/** Format a date value to "HH:mm:ss" in VN timezone, 24h */
+export function fmtTime(value: string | Date): string {
+  return new Date(value).toLocaleString("vi-VN", TIME_FMT);
+}
+
+/** Format minutes to "Xh" or "XhYp" (e.g. 8h, 8h30p) */
+export function fmtMinutesToHours(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${h}h${m > 0 ? m + "p" : ""}`;
+}

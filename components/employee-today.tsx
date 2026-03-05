@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { apiJson } from "@/lib/client-api";
 import { attendanceStatusLabel, breakTypeLabel } from "@/lib/display-labels";
+import { fmtDateTime, fmtTime, VN_TIMEZONE } from "@/lib/time";
 
 type BreakSession = {
   id: string;
@@ -29,7 +30,7 @@ type Day = {
 const WEEK_DAYS = ["THỨ HAI", "THỨ BA", "THỨ TƯ", "THỨ NĂM", "THỨ SÁU", "THỨ BẢY", "CHỦ NHẬT"] as const;
 const LEAVE_OPTIONS = ["Nghỉ phép", "Bổ sung thẻ", "Việc riêng", "Khác"] as const;
 function getTodayVN() {
-  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+  return new Date().toLocaleDateString("en-CA", { timeZone: VN_TIMEZONE });
 }
 
 function toMonthDate(month: string, day: number) {
@@ -106,16 +107,7 @@ export default function EmployeeToday() {
   }, []);
 
   useEffect(() => {
-    const formatNow = () =>
-      new Date().toLocaleString("vi-VN", {
-        timeZone: "Asia/Ho_Chi_Minh",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      });
+    const formatNow = () => fmtDateTime(new Date());
     setClockText(formatNow());
     const timer = setInterval(() => setClockText(formatNow()), 1000);
     return () => clearInterval(timer);
@@ -253,13 +245,13 @@ export default function EmployeeToday() {
             <h4>THẺ CHẤM CÔNG:</h4>
             {selectedDate !== todayVn && <p className="small">Đánh thẻ chỉ áp dụng cho ngày hôm nay ({todayVn}).</p>}
             <div className="employee-clock__action-row">
-              <span>Lên ca: {actionDay?.checkInAt ? new Date(actionDay.checkInAt).toLocaleTimeString("vi-VN") : "--:--:--"}</span>
+              <span>Lên ca: {actionDay?.checkInAt ? fmtTime(actionDay.checkInAt) : "--:--:--"}</span>
               <button disabled={loading || Boolean(todayDay?.checkInAt) || Boolean(activeShiftDay)} onClick={() => post("/api/attendance/check-in")}>
                 ĐÁNH THẺ
               </button>
             </div>
             <div className="employee-clock__action-row">
-              <span>Xuống ca: {actionDay?.checkOutAt ? new Date(actionDay.checkOutAt).toLocaleTimeString("vi-VN") : "--:--:--"}</span>
+              <span>Xuống ca: {actionDay?.checkOutAt ? fmtTime(actionDay.checkOutAt) : "--:--:--"}</span>
               <button
                 disabled={loading || !Boolean(actionDay?.checkInAt) || Boolean(actionDay?.checkOutAt) || Boolean(openBreak)}
                 onClick={() => post("/api/attendance/check-out")}
@@ -326,7 +318,7 @@ export default function EmployeeToday() {
                 KẾT THÚC
               </button>
             </div>
-            {openBreak && <p className="small">Đang nghỉ từ {new Date(openBreak.startAt).toLocaleTimeString("vi-VN")}</p>}
+            {openBreak && <p className="small">Đang nghỉ từ {fmtTime(openBreak.startAt)}</p>}
           </section>
         </aside>
       </div>

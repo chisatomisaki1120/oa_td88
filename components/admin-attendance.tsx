@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { apiJson } from "@/lib/client-api";
 import { attendanceStatusLabel, parseWarnings } from "@/lib/display-labels";
+import { fmtDateTime } from "@/lib/time";
 import { ErrorMessage, EmptyState, SuccessMessage } from "@/components/ui-feedback";
 
 type Row = {
@@ -186,8 +187,8 @@ export default function AdminAttendance() {
                 <td>{row.workDate}</td>
                 <td>{row.user.username}</td>
                 <td>{row.user.department || "-"}</td>
-                <td>{row.checkInAt ? new Date(row.checkInAt).toLocaleString("vi-VN") : "-"}</td>
-                <td>{row.checkOutAt ? new Date(row.checkOutAt).toLocaleString("vi-VN") : "-"}</td>
+                <td>{row.checkInAt ? fmtDateTime(row.checkInAt) : "-"}</td>
+                <td>{row.checkOutAt ? fmtDateTime(row.checkOutAt) : "-"}</td>
                 <td>{row.isOffDay ? (row.isDeducted ? "Off không phép" : "Off phép") : "-"}</td>
               </tr>
             ))}

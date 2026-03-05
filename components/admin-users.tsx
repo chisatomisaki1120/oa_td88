@@ -4,6 +4,7 @@ import { FormEvent, Fragment, useEffect, useState } from "react";
 import type { Role } from "@prisma/client";
 import { apiJson } from "@/lib/client-api";
 import { roleLabel, workModeLabel } from "@/lib/display-labels";
+import { fmtDateTime } from "@/lib/time";
 import { ErrorMessage, SuccessMessage, EmptyState } from "@/components/ui-feedback";
 
 type User = {
@@ -371,7 +372,7 @@ export default function AdminUsers({ actorRole }: Props) {
                                       <td>{`${conflict.fullName} (${conflict.username})`}</td>
                                       <td>{conflict.ipConflictCountToday}</td>
                                       <td>{conflict.deviceConflictCount}</td>
-                                      <td>{new Date(conflict.lastConflictAt).toLocaleString("vi-VN")}</td>
+                                      <td>{fmtDateTime(conflict.lastConflictAt)}</td>
                                     </tr>
                                   ))}
                                   {(u.sharedLoginConflicts ?? []).length === 0 && (

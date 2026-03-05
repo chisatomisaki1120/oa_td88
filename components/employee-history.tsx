@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiJson } from "@/lib/client-api";
 import { attendanceStatusLabel, parseWarnings } from "@/lib/display-labels";
+import { fmtDateTime } from "@/lib/time";
 import { ErrorMessage, EmptyState } from "@/components/ui-feedback";
 
 type Day = {
@@ -59,8 +60,8 @@ export default function EmployeeHistory() {
             <tr key={r.id}>
               <td>{r.workDate}</td>
               <td>{attendanceStatusLabel(r.status)}</td>
-              <td>{r.checkInAt ? new Date(r.checkInAt).toLocaleString("vi-VN") : "-"}</td>
-              <td>{r.checkOutAt ? new Date(r.checkOutAt).toLocaleString("vi-VN") : "-"}</td>
+              <td>{r.checkInAt ? fmtDateTime(r.checkInAt) : "-"}</td>
+              <td>{r.checkOutAt ? fmtDateTime(r.checkOutAt) : "-"}</td>
               <td>{r.workedMinutes ?? 0}</td>
               <td>{parseWarnings(r.warningFlagsJson).join(", ") || "-"}</td>
             </tr>

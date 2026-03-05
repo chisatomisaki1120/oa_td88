@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiJson } from "@/lib/client-api";
 import { roleLabel } from "@/lib/display-labels";
+import { fmtDateTime } from "@/lib/time";
 import { ErrorMessage, SuccessMessage, EmptyState } from "@/components/ui-feedback";
 
 type AdminSession = {
@@ -69,8 +70,8 @@ export default function AdminSessions() {
               <td>{s.user.fullName} ({s.user.username})</td>
               <td>{roleLabel(s.user.role)}</td>
               <td>{s.ipAddress}</td>
-              <td>{new Date(s.lastSeenAt).toLocaleString("vi-VN")}</td>
-              <td>{new Date(s.expiresAt).toLocaleString("vi-VN")}</td>
+              <td>{fmtDateTime(s.lastSeenAt)}</td>
+              <td>{fmtDateTime(s.expiresAt)}</td>
               <td>
                 <button className="danger" style={{ fontSize: 12, padding: "4px 10px" }} onClick={() => revoke(s.id)}>
                   Đăng xuất

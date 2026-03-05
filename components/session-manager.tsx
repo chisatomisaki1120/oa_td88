@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiJson } from "@/lib/client-api";
 import { ErrorMessage, SuccessMessage } from "@/components/ui-feedback";
+import { fmtDateTime } from "@/lib/time";
 
 type Session = {
   id: string;
@@ -66,7 +67,7 @@ export default function SessionManager() {
             <strong>{parseBrowser(s.userAgent)}</strong> — {s.ipAddress}
             <br />
             <span className="small">
-              Đăng nhập: {new Date(s.createdAt).toLocaleString("vi-VN")} · Hoạt động: {new Date(s.lastSeenAt).toLocaleString("vi-VN")}
+              Đăng nhập: {fmtDateTime(s.createdAt)} · Hoạt động: {fmtDateTime(s.lastSeenAt)}
             </span>
           </div>
           <button className="danger" style={{ fontSize: 12, padding: "4px 10px" }} onClick={() => revoke(s.id)}>

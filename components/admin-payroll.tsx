@@ -22,11 +22,7 @@ type PayrollRow = {
   remainingOff: number;
 };
 
-function fmtHours(min: number) {
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  return `${h}h${m > 0 ? m + "p" : ""}`;
-}
+
 
 export default function AdminPayroll() {
   const [month, setMonth] = useState(() =>
