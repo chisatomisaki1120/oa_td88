@@ -37,6 +37,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   };
   if (payload.data.checkInAt !== undefined) data.checkInAt = payload.data.checkInAt ? new Date(payload.data.checkInAt) : null;
   if (payload.data.checkOutAt !== undefined) data.checkOutAt = payload.data.checkOutAt ? new Date(payload.data.checkOutAt) : null;
+
+  const finalCheckIn = (data.checkInAt !== undefined ? data.checkInAt : existing.checkInAt) as Date | null;
+  const finalCheckOut = (data.checkOutAt !== undefined ? data.checkOutAt : existing.checkOutAt) as Date | null;
+  if (finalCheckIn && finalCheckOut && finalCheckOut <= finalCheckIn) {
+    return fail("Giờ ra phải sau giờ vào", 400);
+  }
   if (payload.data.status !== undefined) data.status = payload.data.status;
   if (payload.data.warningFlagsJson !== undefined) data.warningFlagsJson = JSON.stringify(payload.data.warningFlagsJson);
 

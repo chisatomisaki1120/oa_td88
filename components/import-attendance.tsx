@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { getCsrfToken } from "@/lib/client-api";
+import { getCsrfToken, ensureCsrf } from "@/lib/client-api";
 import { ErrorMessage, SuccessMessage } from "@/components/ui-feedback";
 
 type ImportResult = {
@@ -29,6 +29,7 @@ export default function ImportAttendance() {
     formData.append("file", file);
 
     try {
+      await ensureCsrf();
       const res = await fetch("/api/admin/attendance/import", {
         method: "POST",
         headers: { "x-csrf-token": getCsrfToken() },

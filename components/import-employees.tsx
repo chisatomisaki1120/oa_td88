@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { getCsrfToken } from "@/lib/client-api";
+import { getCsrfToken, ensureCsrf } from "@/lib/client-api";
 import { ErrorMessage, SuccessMessage } from "@/components/ui-feedback";
 
 type PreviewRow = { row: number; username: string; fullName: string; role: string; department: string; error?: string };
@@ -30,6 +30,7 @@ export default function ImportEmployees() {
     formData.append("mode", mode);
 
     try {
+      await ensureCsrf();
       const res = await fetch("/api/admin/users/import", {
         method: "POST",
         headers: { "x-csrf-token": getCsrfToken() },

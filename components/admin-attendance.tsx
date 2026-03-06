@@ -58,9 +58,7 @@ export default function AdminAttendance() {
   const exportMonthOptions = useMemo(() => {
     const startYear = 2026;
     const startMonth = 3;
-    const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Ho_Chi_Minh" }));
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1;
+    const [currentYear, currentMonth] = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).split("-").map(Number);
     const currentKey = currentYear * 12 + currentMonth;
     const startKey = startYear * 12 + startMonth;
 

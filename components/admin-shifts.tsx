@@ -4,6 +4,12 @@ import { FormEvent, useEffect, useState } from "react";
 import { apiJson } from "@/lib/client-api";
 import { ErrorMessage, EmptyState } from "@/components/ui-feedback";
 
+const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
+  const h = String(Math.floor(i / 2)).padStart(2, "0");
+  const m = i % 2 === 0 ? "00" : "30";
+  return `${h}:${m}`;
+});
+
 type Shift = {
   id: string;
   name: string;
@@ -81,8 +87,12 @@ export default function AdminShifts() {
         <h3 style={{ marginTop: 0 }}>Tạo ca làm</h3>
         <form className="row" onSubmit={createShift}>
           <input placeholder="Tên ca" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
-          <input type="time" value={form.startTime} onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))} />
-          <input type="time" value={form.endTime} onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))} />
+          <select value={form.startTime} onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))}>
+            {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <select value={form.endTime} onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))}>
+            {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
           <button type="submit">Tạo ca</button>
         </form>
       </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { getCsrfToken } from "@/lib/client-api";
+import { getCsrfToken, ensureCsrf } from "@/lib/client-api";
 
 export default function AdminDbTools() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -27,6 +27,7 @@ export default function AdminDbTools() {
 
     setLoadingImport(true);
     try {
+      await ensureCsrf();
       const response = await fetch("/api/admin/db/import.json", {
         method: "POST",
         headers: {

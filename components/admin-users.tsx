@@ -7,6 +7,12 @@ import { roleLabel, workModeLabel } from "@/lib/display-labels";
 import { fmtDateTime } from "@/lib/time";
 import { ErrorMessage, SuccessMessage, EmptyState } from "@/components/ui-feedback";
 
+const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
+  const h = String(Math.floor(i / 2)).padStart(2, "0");
+  const m = i % 2 === 0 ? "00" : "30";
+  return `${h}:${m}`;
+});
+
 type User = {
   id: string;
   username: string;
@@ -192,8 +198,12 @@ export default function AdminUsers({ actorRole }: Props) {
             <option value="ADMIN">Quản trị viên</option>
             {canAssignSuperAdmin && <option value="SUPER_ADMIN">Siêu quản trị</option>}
           </select>
-          <input type="time" value={form.workStartTime} onChange={(e) => setForm((f) => ({ ...f, workStartTime: e.target.value }))} />
-          <input type="time" value={form.workEndTime} onChange={(e) => setForm((f) => ({ ...f, workEndTime: e.target.value }))} />
+          <select value={form.workStartTime} onChange={(e) => setForm((f) => ({ ...f, workStartTime: e.target.value }))}>
+            {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <select value={form.workEndTime} onChange={(e) => setForm((f) => ({ ...f, workEndTime: e.target.value }))}>
+            {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
           <select value={form.workMode} onChange={(e) => setForm((f) => ({ ...f, workMode: e.target.value as "ONLINE" | "OFFLINE" }))}>
             <option value="OFFLINE">Offline</option>
             <option value="ONLINE">Online</option>
@@ -237,7 +247,7 @@ export default function AdminUsers({ actorRole }: Props) {
               <th>Chức vụ</th>
               <th>Vai trò</th>
               <th>Giờ làm</th>
-              <th>Hình thức làm việc</th>
+              <th>Hình thức</th>
               <th>Nghỉ/tháng</th>
               <th>Trạng thái</th>
               <th>Cảnh báo</th>
@@ -252,18 +262,18 @@ export default function AdminUsers({ actorRole }: Props) {
               return (
                 <Fragment key={u.id}>
                   <tr>
-                    <td className="employee-name-cell">{`${u.fullName} (${u.username})`}</td>
+                    <td className="employee-name-cell">{`${u.username}`}</td>
                     <td>{u.department || "-"}</td>
                     <td>{roleLabel(u.role)}</td>
                     <td>
                       {u.workStartTime && u.workEndTime
-                        ? `${u.workStartTime}-${u.workEndTime} (cho phép trễ/sớm ${u.lateGraceMinutes}/${u.earlyLeaveGraceMinutes} phút)`
-                        : "Theo ca gán"}
+                        ? `${u.workStartTime}-${u.workEndTime}`
+                        : "-"}
                     </td>
                     <td>{workModeLabel(u.workMode)}</td>
                     <td>{u.allowedOffDaysPerMonth}</td>
                     <td>
-                      <span className={`status-chip ${u.isActive ? "active" : "inactive"}`}>{u.isActive ? "Đang hoạt động" : "Ngừng hoạt động"}</span>
+                      <span className={`status-chip ${u.isActive ? "active" : "inactive"}`}>{u.isActive ? "active" : "inactive"}</span>
                     </td>
                     <td>
                       {u.hasSharedLoginRisk ? (
@@ -310,8 +320,14 @@ export default function AdminUsers({ actorRole }: Props) {
                                   <option value="ADMIN">Quản trị viên</option>
                                   {canAssignSuperAdmin && <option value="SUPER_ADMIN">Siêu quản trị</option>}
                                 </select>
-                                <input type="time" value={editForm.workStartTime} onChange={(e) => setEditForm((f) => ({ ...f, workStartTime: e.target.value }))} />
-                                <input type="time" value={editForm.workEndTime} onChange={(e) => setEditForm((f) => ({ ...f, workEndTime: e.target.value }))} />
+                                <select value={editForm.workStartTime} onChange={(e) => setEditForm((f) => ({ ...f, workStartTime: e.target.value }))}>
+                                  <option value="">--</option>
+                                  {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+                                </select>
+                                <select value={editForm.workEndTime} onChange={(e) => setEditForm((f) => ({ ...f, workEndTime: e.target.value }))}>
+                                  <option value="">--</option>
+                                  {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+                                </select>
                                 <select value={editForm.workMode} onChange={(e) => setEditForm((f) => ({ ...f, workMode: e.target.value as "ONLINE" | "OFFLINE" }))}>
                                   <option value="OFFLINE">Offline</option>
                                   <option value="ONLINE">Online</option>

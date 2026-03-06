@@ -41,7 +41,7 @@ export default function EmployeeHistory() {
     <div className="card">
       <h3 style={{ marginTop: 0 }}>Lịch sử chấm công</h3>
       <div className="row" style={{ marginBottom: 12 }}>
-        <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
+        <input type="month" value={month} onChange={(e) => { setMonth(e.target.value); load(e.target.value); }} />
       </div>
       {error && <ErrorMessage error={error} />}
       <table>

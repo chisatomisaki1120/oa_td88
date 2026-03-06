@@ -93,7 +93,10 @@ export default function EmployeeToday() {
     setError("");
     try {
       const { daysInMonth } = monthMeta(targetMonth);
-      const from = `${targetMonth}-01`;
+      // Include last day of previous month to capture open overnight shifts at month boundary
+      const [y, m] = targetMonth.split("-").map(Number);
+      const prevLast = new Date(y, m - 1, 0);
+      const from = `${prevLast.getFullYear()}-${String(prevLast.getMonth() + 1).padStart(2, "0")}-${String(prevLast.getDate()).padStart(2, "0")}`;
       const to = `${targetMonth}-${String(daysInMonth).padStart(2, "0")}`;
       const data = await apiJson<Day[]>(`/api/attendance/me?from=${from}&to=${to}`);
       setRows(data);

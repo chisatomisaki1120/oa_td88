@@ -21,6 +21,10 @@ export async function POST(request: NextRequest) {
   const payload = schema.safeParse(await request.json().catch(() => null));
   if (!payload.success) return fail("Invalid payload", 400, payload.error.flatten());
 
+  if (payload.data.effectiveTo && new Date(payload.data.effectiveTo) <= new Date(payload.data.effectiveFrom)) {
+    return fail("Ngày kết thúc phải sau ngày bắt đầu", 400);
+  }
+
   const assignment = await prisma.employeeShiftAssignment.create({
     data: {
       userId: payload.data.userId,

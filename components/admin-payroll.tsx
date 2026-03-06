@@ -32,8 +32,8 @@ export default function AdminPayroll() {
   const [error, setError] = useState("");
 
   const monthOptions = useMemo(() => {
-    const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Ho_Chi_Minh" }));
-    const currentKey = now.getFullYear() * 12 + (now.getMonth() + 1);
+    const [cy, cm] = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).split("-").map(Number);
+    const currentKey = cy * 12 + cm;
     const startKey = 2026 * 12 + 3;
     const opts: string[] = [];
     for (let k = currentKey; k >= startKey; k--) {

@@ -142,11 +142,38 @@ export function resolveWorkDateForShiftMoment(schedule: WorkSchedule | null, now
 function withEarlyLeaveWarning(
   status: AttendanceStatus,
   schedule: WorkSchedule | null,
+  checkInAt: Date,
   checkOutAt: Date,
   warnings: string[],
 ): AttendanceStatus {
   if (!schedule) return status;
-  if (vnMinuteOfDay(checkOutAt) < parseHHMM(schedule.endTime) - schedule.earlyLeaveGraceMinutes) {
+
+  const endMin = parseHHMM(schedule.endTime);
+  const graceEnd = endMin - schedule.earlyLeaveGraceMinutes;
+  const overnight = isOvernightShift(schedule);
+  const checkOutMinute = vnMinuteOfDay(checkOutAt);
+  const sameDay = vnDateString(checkInAt) === vnDateString(checkOutAt);
+
+  let isEarly: boolean;
+
+  if (overnight) {
+    // Overnight shift (e.g. 22:00-06:00): checkout in the morning portion = early if before grace
+    // Checkout on the same calendar day as check-in (before midnight) = very early
+    if (sameDay) {
+      isEarly = true;
+    } else {
+      isEarly = checkOutMinute < graceEnd;
+    }
+  } else {
+    // Normal shift (e.g. 11:00-21:00): if checkout is the next day, they worked past midnight → NOT early
+    if (!sameDay) {
+      isEarly = false;
+    } else {
+      isEarly = checkOutMinute < graceEnd;
+    }
+  }
+
+  if (isEarly) {
     warnings.push("EARLY_LEAVE");
     if (status === AttendanceStatus.PRESENT) return AttendanceStatus.EARLY_LEAVE;
   }
@@ -186,7 +213,7 @@ export async function recalculateAttendanceDay(
   } else {
     const totalBreak = breaks.reduce((acc, item) => acc + (item.durationMinutesComputed ?? 0), 0);
     workedMinutes = Math.max(0, minutesBetween(attendanceDay.checkInAt, attendanceDay.checkOutAt) - totalBreak);
-    status = withEarlyLeaveWarning(computeCheckInStatus(schedule, attendanceDay.checkInAt), schedule, attendanceDay.checkOutAt, warnings);
+    status = withEarlyLeaveWarning(computeCheckInStatus(schedule, attendanceDay.checkInAt), schedule, attendanceDay.checkInAt, attendanceDay.checkOutAt, warnings);
   }
 
   return tx.attendanceDay.update({

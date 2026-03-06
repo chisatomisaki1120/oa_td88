@@ -11,6 +11,10 @@ async function refreshCsrfToken() {
   }).catch(() => undefined);
 }
 
+export async function ensureCsrf() {
+  if (!getCsrfToken()) await refreshCsrfToken();
+}
+
 export async function apiJson<T>(url: string, init?: RequestInit): Promise<T> {
   const method = (init?.method ?? "GET").toUpperCase();
 

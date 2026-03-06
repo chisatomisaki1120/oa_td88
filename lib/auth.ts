@@ -101,7 +101,7 @@ async function getSessionUserFromToken(token: string): Promise<SessionUser | nul
     },
   });
 
-  if (!session || session.expiresAt < new Date() || !session.user.isActive) {
+  if (!session || !session.user || session.expiresAt < new Date() || !session.user.isActive) {
     return null;
   }
 
