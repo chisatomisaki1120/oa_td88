@@ -454,7 +454,7 @@ td {
 
 .admin-users-table-wrap {
   overflow-x: auto;
-  border: 1px solid #dbe3ef;
+  border: 1px solid var(--border);
   border-radius: 10px;
 }
 
@@ -463,31 +463,31 @@ td {
 }
 
 .admin-users-table thead th {
-  background: #f3f7fb;
-  color: #1f2a37;
+  background: var(--surface-hover);
+  color: var(--text);
   font-weight: 700;
   font-size: 13px;
-  border-bottom: 1px solid #dbe3ef;
+  border-bottom: 1px solid var(--border);
   padding: 10px 12px;
 }
 
 .admin-users-table td {
   padding: 12px;
-  border-bottom: 1px solid #e6edf5;
+  border-bottom: 1px solid var(--border);
   vertical-align: middle;
 }
 
 .admin-users-table tbody tr:nth-child(even) {
-  background: #fcfdff;
+  background: var(--surface);
 }
 
 .admin-users-table tbody tr:hover {
-  background: #f6fbff;
+  background: var(--surface-hover);
 }
 
 .employee-name-cell {
   font-weight: 600;
-  color: #0f172a;
+  color: var(--text);
 }
 
 .status-chip,
@@ -511,8 +511,18 @@ td {
 }
 
 .muted-chip {
-  background: #f1f5f9;
-  color: #64748b;
+  background: var(--badge-bg);
+  color: var(--muted);
+}
+
+[data-theme="dark"] .status-chip.active {
+  background: #064e3b;
+  color: #6ee7b7;
+}
+
+[data-theme="dark"] .status-chip.inactive {
+  background: #7f1d1d;
+  color: #fca5a5;
 }
 
 .actions-col {
@@ -531,9 +541,9 @@ td {
 .admin-users-inline-panel {
   margin: 8px 0;
   padding: 12px;
-  border: 1px solid #dbe6f2;
+  border: 1px solid var(--border);
   border-radius: 10px;
-  background: #fbfdff;
+  background: var(--surface);
 }
 
 /* ── Settings tabs ── */
