@@ -71,6 +71,51 @@ export async function POST(request: NextRequest) {
     return fail("Admin không được tạo SuperAdmin", 403);
   }
 
+  const existing = await prisma.user.findUnique({ where: { username: payload.data.username } });
+
+  if (existing && !existing.deletedAt) {
+    return fail("Tên đăng nhập đã tồn tại", 409);
+  }
+
+  if (existing && existing.deletedAt) {
+    // Reactivate soft-deleted user with new data
+    const user = await prisma.user.update({
+      where: { id: existing.id },
+      data: {
+        passwordHash: await hashPassword(payload.data.password),
+        fullName: payload.data.fullName,
+        email: payload.data.email || null,
+        department: payload.data.department || null,
+        role: payload.data.role,
+        isActive: payload.data.isActive,
+        workStartTime: payload.data.workStartTime || null,
+        workEndTime: payload.data.workEndTime || null,
+        lateGraceMinutes: payload.data.lateGraceMinutes,
+        earlyLeaveGraceMinutes: payload.data.earlyLeaveGraceMinutes,
+        workMode: payload.data.workMode,
+        allowedOffDaysPerMonth: payload.data.allowedOffDaysPerMonth,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        username: true,
+        fullName: true,
+        email: true,
+        department: true,
+        role: true,
+        isActive: true,
+        workStartTime: true,
+        workEndTime: true,
+        lateGraceMinutes: true,
+        earlyLeaveGraceMinutes: true,
+        workMode: true,
+        allowedOffDaysPerMonth: true,
+        createdAt: true,
+      },
+    });
+    return ok(user, { status: 201 });
+  }
+
   const user = await prisma.user
     .create({
       data: {
@@ -107,7 +152,7 @@ export async function POST(request: NextRequest) {
     })
     .catch(() => null);
 
-  if (!user) return fail("Không tạo được tài khoản hoặc dữ liệu không hợp lệ", 409);
+  if (!user) return fail("Tên đăng nhập đã tồn tại hoặc dữ liệu không hợp lệ", 409);
 
   return ok(user, { status: 201 });
 }

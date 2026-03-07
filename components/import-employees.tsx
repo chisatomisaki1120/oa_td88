@@ -4,9 +4,9 @@ import { useState, useRef } from "react";
 import { getCsrfToken, ensureCsrf } from "@/lib/client-api";
 import { ErrorMessage, SuccessMessage } from "@/components/ui-feedback";
 
-type PreviewRow = { row: number; username: string; fullName: string; role: string; department: string; error?: string };
+type PreviewRow = { row: number; username: string; fullName: string; role: string; department: string; shift: string; action?: string; error?: string };
 type PreviewResult = { mode: "preview"; valid: number; invalid: number; total: number; previews: PreviewRow[]; columns: string[] };
-type CommitResult = { mode: "commit"; created: number; total: number };
+type CommitResult = { mode: "commit"; created: number; updated: number; total: number };
 
 export default function ImportEmployees() {
   const [loading, setLoading] = useState(false);
@@ -43,7 +43,10 @@ export default function ImportEmployees() {
         setPreview(data.data as PreviewResult);
       } else {
         const result = data.data as CommitResult;
-        setMessage(`Đã tạo thành công ${result.created} nhân viên`);
+        const parts = [];
+        if (result.created > 0) parts.push(`tạo ${result.created} mới`);
+        if (result.updated > 0) parts.push(`cập nhật ${result.updated}`);
+        setMessage(`Import thành công: ${parts.join(", ")}`);
         setPreview(null);
         if (fileRef.current) fileRef.current.value = "";
         lastFileRef.current = null;
@@ -59,7 +62,7 @@ export default function ImportEmployees() {
     <div className="card">
       <h3 style={{ marginTop: 0 }}>Import nhân viên từ file</h3>
       <p className="small" style={{ margin: "0 0 8px" }}>
-        Hỗ trợ CSV, XLS, XLSX. Cần cột: username/mã NV, fullName/họ tên. Tùy chọn: password (mặc định = username), role, department, email, phone.
+        Hỗ trợ CSV, XLS, XLSX. Cần cột: username/mã NV, fullName/họ tên. Tùy chọn: password (mặc định = username), role, department, email, phone, ca làm việc (tên ca), giờ vào, giờ ra.
       </p>
       <div className="row">
         <input ref={fileRef} type="file" accept=".csv,.xls,.xlsx" />
@@ -78,7 +81,7 @@ export default function ImportEmployees() {
           <div style={{ maxHeight: 300, overflowY: "auto" }}>
             <table style={{ fontSize: 13 }}>
               <thead>
-                <tr><th>Dòng</th><th>Username</th><th>Họ tên</th><th>Vai trò</th><th>Chức vụ</th><th>Trạng thái</th></tr>
+                <tr><th>Dòng</th><th>Username</th><th>Họ tên</th><th>Vai trò</th><th>Chức vụ</th><th>Ca làm</th><th>Trạng thái</th></tr>
               </thead>
               <tbody>
                 {preview.previews.map((r) => (
@@ -88,7 +91,8 @@ export default function ImportEmployees() {
                     <td>{r.fullName}</td>
                     <td>{r.role}</td>
                     <td>{r.department}</td>
-                    <td style={{ color: r.error ? "#b91c1c" : "#047857" }}>{r.error ?? "OK"}</td>
+                    <td>{r.shift}</td>
+                    <td style={{ color: r.error ? "#b91c1c" : r.action === "Cập nhật" ? "#b45309" : "#047857" }}>{r.error ?? r.action ?? "OK"}</td>
                   </tr>
                 ))}
               </tbody>

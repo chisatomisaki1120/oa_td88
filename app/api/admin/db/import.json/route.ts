@@ -35,6 +35,15 @@ function createSafetyBackup(dbPath: string) {
   fs.mkdirSync(backupDir, { recursive: true });
   const backupPath = path.join(backupDir, `db-before-import-${nowStamp()}.db`);
   fs.copyFileSync(dbPath, backupPath);
+  // Keep only 7 most recent backups
+  const files = fs
+    .readdirSync(backupDir)
+    .filter((f) => f.endsWith(".db"))
+    .map((f) => ({ name: f, time: fs.statSync(path.join(backupDir, f)).mtimeMs }))
+    .sort((a, b) => b.time - a.time);
+  for (const file of files.slice(7)) {
+    fs.unlinkSync(path.join(backupDir, file.name));
+  }
   return backupPath;
 }
 

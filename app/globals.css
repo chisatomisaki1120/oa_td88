@@ -93,6 +93,30 @@ button.danger {
   background: var(--danger);
 }
 
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: none;
+  color: #fff;
+  background: var(--primary);
+  transition: opacity 0.15s;
+}
+
+.btn:hover {
+  opacity: 0.85;
+}
+
+.btn.secondary {
+  background: #374151;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -510,4 +534,92 @@ td {
   border: 1px solid #dbe6f2;
   border-radius: 10px;
   background: #fbfdff;
+}
+
+/* ── Settings tabs ── */
+.settings-layout {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: sticky;
+  top: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px;
+}
+
+.settings-nav__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, color 0.15s;
+}
+
+.settings-nav__item:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.settings-nav__item.active {
+  background: var(--primary);
+  color: #fff;
+}
+
+.settings-nav__icon {
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.settings-nav__label {
+  white-space: nowrap;
+}
+
+.settings-content > .card:first-child {
+  margin-top: 0;
+}
+
+@media (max-width: 768px) {
+  .settings-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    position: static;
+    gap: 2px;
+    padding: 6px;
+  }
+
+  .settings-nav__item {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  .settings-nav__label {
+    display: none;
+  }
+
+  .settings-nav__icon {
+    font-size: 18px;
+  }
 }

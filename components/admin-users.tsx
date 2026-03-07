@@ -219,7 +219,9 @@ export default function AdminUsers({ actorRole }: Props) {
       </div>
 
       <div className="card">
-        <h3 style={{ marginTop: 0 }}>Danh sách tài khoản</h3>
+        <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+          <h3 style={{ marginTop: 0 }}>Danh sách tài khoản</h3>
+        </div>
         <div className="admin-users-table-wrap">
           <table className="admin-users-table">
           <thead>
