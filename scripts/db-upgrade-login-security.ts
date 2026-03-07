@@ -49,8 +49,6 @@ function main() {
   fs.mkdirSync(path.dirname(resolvedDbPath), { recursive: true });
   const db = new Database(resolvedDbPath);
 
-  addColumnIfMissing(db, "User", "hasSharedLoginRisk", "BOOLEAN NOT NULL DEFAULT false");
-
   addColumnIfMissing(db, "AuthSession", "ipAddress", "TEXT NOT NULL DEFAULT 'unknown'");
   addColumnIfMissing(db, "AuthSession", "userAgent", "TEXT");
   addColumnIfMissing(db, "AuthSession", "deviceKey", "TEXT NOT NULL DEFAULT ''");
@@ -81,18 +79,6 @@ CREATE TABLE IF NOT EXISTS "LoginSecurityConfig" (
   "blockMobilePhoneLogin" BOOLEAN NOT NULL DEFAULT true,
   "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-CREATE TABLE IF NOT EXISTS "LoginConflictEvent" (
-  "id" TEXT NOT NULL PRIMARY KEY,
-  "userId" TEXT NOT NULL,
-  "conflictWithUserId" TEXT NOT NULL,
-  "conflictType" TEXT NOT NULL,
-  "ipAddress" TEXT NOT NULL,
-  "deviceKey" TEXT NOT NULL,
-  "occurredDate" TEXT NOT NULL,
-  "occurredAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT "LoginConflictEvent_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT "LoginConflictEvent_conflictWithUserId_fkey" FOREIGN KEY ("conflictWithUserId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
-);
 INSERT OR IGNORE INTO "LoginSecurityConfig" ("id", "enforceSingleDevicePerAccount", "enforceSingleAccountPerDeviceIp", "blockMobilePhoneLogin", "updatedAt")
 VALUES (1, true, true, true, CURRENT_TIMESTAMP);
 `);
@@ -106,11 +92,6 @@ VALUES (1, true, true, true, CURRENT_TIMESTAMP);
     db.exec(`CREATE INDEX IF NOT EXISTS "LoginAccessLog_ipAddress_createdAt_idx" ON "LoginAccessLog"("ipAddress", "createdAt");`);
     db.exec(`CREATE INDEX IF NOT EXISTS "LoginAccessLog_deviceKey_createdAt_idx" ON "LoginAccessLog"("deviceKey", "createdAt");`);
     db.exec(`CREATE INDEX IF NOT EXISTS "LoginAccessLog_success_createdAt_idx" ON "LoginAccessLog"("success", "createdAt");`);
-  }
-  if (hasTable(db, "LoginConflictEvent")) {
-    db.exec(`CREATE INDEX IF NOT EXISTS "LoginConflictEvent_userId_occurredAt_idx" ON "LoginConflictEvent"("userId", "occurredAt");`);
-    db.exec(`CREATE INDEX IF NOT EXISTS "LoginConflictEvent_userId_occurredDate_conflictType_idx" ON "LoginConflictEvent"("userId", "occurredDate", "conflictType");`);
-    db.exec(`CREATE INDEX IF NOT EXISTS "LoginConflictEvent_conflictWithUserId_occurredAt_idx" ON "LoginConflictEvent"("conflictWithUserId", "occurredAt");`);
   }
   const duplicateStatus = hasDuplicateUsername(db);
   if (duplicateStatus.hasDuplicate) {

@@ -6,7 +6,6 @@ import { hashPassword } from "@/lib/auth";
 import { validateCsrf } from "@/lib/csrf";
 import { prisma } from "@/lib/prisma";
 import { requireRoleRequest } from "@/lib/rbac";
-import { vnDateString } from "@/lib/time";
 import { TIME_REGEX, PASSWORD_MIN_LENGTH } from "@/lib/constants";
 
 const createSchema = z.object({
@@ -42,7 +41,6 @@ export async function GET(request: NextRequest) {
       department: true,
       role: true,
       isActive: true,
-      hasSharedLoginRisk: true,
       workStartTime: true,
       workEndTime: true,
       lateGraceMinutes: true,
@@ -54,128 +52,7 @@ export async function GET(request: NextRequest) {
     orderBy: { createdAt: "desc" },
   });
 
-  const visibleUserIds = users.map((u) => u.id);
-  const todayVn = vnDateString();
-  const byUser = new Map<
-    string,
-    Map<
-      string,
-      {
-        accountId: string;
-        username: string;
-        fullName: string;
-        ipConflictCountToday: number;
-        deviceConflictCount: number;
-        lastConflictAt: string;
-      }
-    >
-  >();
-
-  if (visibleUserIds.length > 0) {
-    let ipGrouped: Array<{
-      userId: string;
-      conflictWithUserId: string;
-      _count: { _all: number };
-      _max: { occurredAt: Date | null };
-    }> = [];
-    let deviceGrouped: Array<{
-      userId: string;
-      conflictWithUserId: string;
-      _count: { _all: number };
-      _max: { occurredAt: Date | null };
-    }> = [];
-
-    try {
-      [ipGrouped, deviceGrouped] = await Promise.all([
-        prisma.loginConflictEvent.groupBy({
-          by: ["userId", "conflictWithUserId"],
-          where: {
-            userId: { in: visibleUserIds },
-            conflictWithUserId: { in: visibleUserIds },
-            conflictType: "IP",
-            occurredDate: todayVn,
-          },
-          _count: { _all: true },
-          _max: { occurredAt: true },
-        }),
-        prisma.loginConflictEvent.groupBy({
-          by: ["userId", "conflictWithUserId"],
-          where: {
-            userId: { in: visibleUserIds },
-            conflictWithUserId: { in: visibleUserIds },
-            conflictType: "DEVICE",
-          },
-          _count: { _all: true },
-          _max: { occurredAt: true },
-        }),
-      ]);
-    } catch (error) {
-      const code = (error as { code?: string } | null)?.code;
-      if (code !== "P2021") throw error;
-    }
-
-    const relatedIds = Array.from(new Set([...ipGrouped, ...deviceGrouped].map((row) => row.conflictWithUserId)));
-    const relatedUsers =
-      relatedIds.length === 0
-        ? []
-        : await prisma.user.findMany({
-            where: { id: { in: relatedIds } },
-            select: { id: true, username: true, fullName: true },
-          });
-    const relatedUserMap = new Map(relatedUsers.map((u) => [u.id, u]));
-
-    const mergeRow = (
-      row: { userId: string; conflictWithUserId: string; _count: { _all: number }; _max: { occurredAt: Date | null } },
-      type: "IP" | "DEVICE",
-    ) => {
-      const conflictUser = relatedUserMap.get(row.conflictWithUserId);
-      if (!conflictUser) return;
-
-      const userMap = byUser.get(row.userId) ?? new Map();
-      const existing = userMap.get(conflictUser.id) ?? {
-        accountId: conflictUser.id,
-        username: conflictUser.username,
-        fullName: conflictUser.fullName,
-        ipConflictCountToday: 0,
-        deviceConflictCount: 0,
-        lastConflictAt: row._max.occurredAt?.toISOString() ?? new Date(0).toISOString(),
-      };
-
-      if (type === "IP") existing.ipConflictCountToday += row._count._all;
-      if (type === "DEVICE") existing.deviceConflictCount += row._count._all;
-
-      const lastAt = row._max.occurredAt?.toISOString();
-      if (lastAt && new Date(existing.lastConflictAt) < new Date(lastAt)) {
-        existing.lastConflictAt = lastAt;
-      }
-
-      userMap.set(conflictUser.id, existing);
-      byUser.set(row.userId, userMap);
-    };
-
-    for (const row of ipGrouped) mergeRow(row, "IP");
-    for (const row of deviceGrouped) mergeRow(row, "DEVICE");
-  }
-
-  const enrichedUsers = users.map((user) => {
-    const conflictMap = byUser.get(user.id);
-    const sharedLoginConflicts = conflictMap ? [...conflictMap.values()].sort((a, b) => (a.lastConflictAt < b.lastConflictAt ? 1 : -1)) : [];
-    const sharedIpConflictAccounts = sharedLoginConflicts.filter((item) => item.ipConflictCountToday > 0).length;
-    const sharedDeviceConflictAccounts = sharedLoginConflicts.filter((item) => item.deviceConflictCount > 0).length;
-    const hasSharedIpRisk = sharedIpConflictAccounts > 0;
-    const hasSharedDeviceRisk = sharedDeviceConflictAccounts > 0;
-    return {
-      ...user,
-      hasSharedLoginRisk: hasSharedIpRisk || hasSharedDeviceRisk,
-      hasSharedIpRisk,
-      hasSharedDeviceRisk,
-      sharedIpConflictAccounts,
-      sharedDeviceConflictAccounts,
-      sharedLoginConflicts,
-    };
-  });
-
-  return ok(enrichedUsers);
+  return ok(users);
 }
 
 export async function POST(request: NextRequest) {
@@ -219,7 +96,6 @@ export async function POST(request: NextRequest) {
         department: true,
         role: true,
         isActive: true,
-        hasSharedLoginRisk: true,
         workStartTime: true,
         workEndTime: true,
         lateGraceMinutes: true,

@@ -52,5 +52,7 @@ export async function GET(request: NextRequest) {
     orderBy: { workDate: "desc" },
   });
 
-  return ok(items);
+  return ok(items, {
+    headers: { "Cache-Control": "no-store" },
+  });
 }

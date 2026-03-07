@@ -19,6 +19,8 @@ type ExportPayload = {
   data: Record<string, Array<Record<string, unknown>>>;
 };
 
+const SKIP_TABLES = new Set(["LoginAccessLog", "AuthSession", "AuditLog"]);
+
 function resolveDbPath() {
   const databaseUrl = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
   const dbPath = databaseUrl.replace(/^file:/, "");
@@ -50,7 +52,8 @@ function main() {
     )
     .all() as Array<DbObject>;
 
-  const tableNames = schemaRows.filter((row) => row.type === "table").map((row) => row.name);
+  const tableNames = schemaRows.filter((row) => row.type === "table" && !SKIP_TABLES.has(row.name)).map((row) => row.name);
+  const filteredSchema = schemaRows.filter((row) => !SKIP_TABLES.has(row.tableName));
 
   const data: ExportPayload["data"] = {};
   for (const tableName of tableNames) {
@@ -64,7 +67,7 @@ function main() {
       exportedAt: new Date().toISOString(),
       databasePath: dbPath,
     },
-    schema: schemaRows,
+    schema: filteredSchema,
     data,
   };
 

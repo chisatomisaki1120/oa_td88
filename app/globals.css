@@ -467,7 +467,6 @@ td {
 }
 
 .status-chip,
-.risk-chip,
 .muted-chip {
   display: inline-flex;
   align-items: center;
@@ -485,32 +484,6 @@ td {
 .status-chip.inactive {
   background: #fee2e2;
   color: #991b1b;
-}
-
-.risk-chip {
-  background: #fff7ed;
-  color: #9a3412;
-}
-
-.risk-chip-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.risk-chip-ip {
-  background: #fffbeb;
-  color: #92400e;
-}
-
-.risk-chip-device {
-  background: #fef2f2;
-  color: #991b1b;
-}
-
-.risk-chip-btn {
-  border: 0;
-  cursor: pointer;
 }
 
 .muted-chip {

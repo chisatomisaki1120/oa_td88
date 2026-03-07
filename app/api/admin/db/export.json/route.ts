@@ -12,6 +12,8 @@ function resolveDbPath() {
   return path.isAbsolute(dbPath) ? dbPath : path.join(process.cwd(), dbPath);
 }
 
+const SKIP_TABLES = new Set(["LoginAccessLog", "AuthSession", "AuditLog"]);
+
 export async function GET(request: NextRequest) {
   const actor = await requireRoleRequest(request, [Role.ADMIN, Role.SUPER_ADMIN]);
   if (!actor) return fail("Forbidden", 403);
@@ -33,7 +35,8 @@ export async function GET(request: NextRequest) {
       )
       .all();
 
-    const tableNames = (schema as Array<{ type: string; name: string }>).filter((row) => row.type === "table").map((row) => row.name);
+    const tableNames = (schema as Array<{ type: string; name: string }>).filter((row) => row.type === "table" && !SKIP_TABLES.has(row.name)).map((row) => row.name);
+    const filteredSchema = (schema as Array<{ type: string; name: string; tableName?: string }>).filter((row) => !SKIP_TABLES.has(row.name) && !SKIP_TABLES.has(row.tableName ?? ""));
     const data: Record<string, Array<Record<string, unknown>>> = {};
     for (const tableName of tableNames) {
       data[tableName] = db.prepare(`SELECT * FROM "${tableName}"`).all() as Array<Record<string, unknown>>;
@@ -45,7 +48,7 @@ export async function GET(request: NextRequest) {
         databasePath: dbPath,
         exportedBy: actor.username,
       },
-      schema,
+      schema: filteredSchema,
       data,
     };
 

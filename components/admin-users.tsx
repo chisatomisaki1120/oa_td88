@@ -4,7 +4,6 @@ import { FormEvent, Fragment, useEffect, useState } from "react";
 import type { Role } from "@prisma/client";
 import { apiJson } from "@/lib/client-api";
 import { roleLabel, workModeLabel } from "@/lib/display-labels";
-import { fmtDateTime } from "@/lib/time";
 import { ErrorMessage, SuccessMessage, EmptyState } from "@/components/ui-feedback";
 
 const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
@@ -21,25 +20,12 @@ type User = {
   department: string | null;
   role: "SUPER_ADMIN" | "ADMIN" | "EMPLOYEE";
   isActive: boolean;
-  hasSharedLoginRisk: boolean;
-  hasSharedIpRisk?: boolean;
-  hasSharedDeviceRisk?: boolean;
-  sharedIpConflictAccounts?: number;
-  sharedDeviceConflictAccounts?: number;
   workStartTime: string | null;
   workEndTime: string | null;
   lateGraceMinutes: number;
   earlyLeaveGraceMinutes: number;
   workMode: "ONLINE" | "OFFLINE";
   allowedOffDaysPerMonth: number;
-  sharedLoginConflicts?: Array<{
-    accountId: string;
-    username: string;
-    fullName: string;
-    ipConflictCountToday: number;
-    deviceConflictCount: number;
-    lastConflictAt: string;
-  }>;
 };
 
 type Props = {
@@ -67,7 +53,6 @@ export default function AdminUsers({ actorRole }: Props) {
     allowedOffDaysPerMonth: 2,
   });
   const [editingId, setEditingId] = useState("");
-  const [selectedRiskUserId, setSelectedRiskUserId] = useState("");
   const [editForm, setEditForm] = useState({
     fullName: "",
     email: "",
@@ -155,10 +140,6 @@ export default function AdminUsers({ actorRole }: Props) {
       allowedOffDaysPerMonth: user.allowedOffDaysPerMonth,
       password: "",
     });
-  }
-
-  function toggleRiskDetail(userId: string) {
-    setSelectedRiskUserId((current) => (current === userId ? "" : userId));
   }
 
   async function saveEdit() {
@@ -250,15 +231,12 @@ export default function AdminUsers({ actorRole }: Props) {
               <th>Hình thức</th>
               <th>Nghỉ/tháng</th>
               <th>Trạng thái</th>
-              <th>Cảnh báo</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             {rows.map((u) => {
               const showInlineEdit = editingId === u.id;
-              const showInlineRisk = selectedRiskUserId === u.id;
-              const showInlinePanel = showInlineEdit || showInlineRisk;
               return (
                 <Fragment key={u.id}>
                   <tr>
@@ -276,24 +254,6 @@ export default function AdminUsers({ actorRole }: Props) {
                       <span className={`status-chip ${u.isActive ? "active" : "inactive"}`}>{u.isActive ? "active" : "inactive"}</span>
                     </td>
                     <td>
-                      {u.hasSharedLoginRisk ? (
-                        <div className="risk-chip-group">
-                          {u.hasSharedIpRisk && (
-                            <button className="risk-chip risk-chip-ip risk-chip-btn" type="button" onClick={() => toggleRiskDetail(u.id)}>
-                              Trùng IP ({u.sharedIpConflictAccounts ?? 0})
-                            </button>
-                          )}
-                          {u.hasSharedDeviceRisk && (
-                            <button className="risk-chip risk-chip-device risk-chip-btn" type="button" onClick={() => toggleRiskDetail(u.id)}>
-                              Trùng thiết bị ({u.sharedDeviceConflictAccounts ?? 0})
-                            </button>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="muted-chip">-</span>
-                      )}
-                    </td>
-                    <td>
                       <div className="actions-col">
                         <button className="edit-btn" onClick={() => (showInlineEdit ? setEditingId("") : openEdit(u))}>
                           {showInlineEdit ? "Đóng" : "Sửa"}
@@ -304,11 +264,10 @@ export default function AdminUsers({ actorRole }: Props) {
                       </div>
                     </td>
                   </tr>
-                  {showInlinePanel && (
+                  {showInlineEdit && (
                     <tr>
-                      <td colSpan={9}>
+                      <td colSpan={8}>
                         <div className="admin-users-inline-panel">
-                          {showInlineEdit && (
                             <section>
                               <h4 style={{ marginTop: 0 }}>Chỉnh tài khoản: {u.fullName}</h4>
                               <div className="row">
@@ -362,44 +321,6 @@ export default function AdminUsers({ actorRole }: Props) {
                                 <button className="secondary" onClick={() => setEditingId("")}>Hủy</button>
                               </div>
                             </section>
-                          )}
-                          {showInlineRisk && (
-                            <section>
-                              <div className="row" style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                                <h4 style={{ margin: 0 }}>
-                                  Chi tiết trùng IP/thiết bị: {u.fullName} ({u.username})
-                                </h4>
-                                <button className="secondary" type="button" onClick={() => setSelectedRiskUserId("")}>
-                                  Đóng
-                                </button>
-                              </div>
-                              <table>
-                                <thead>
-                                  <tr>
-                                    <th>Tài khoản trùng</th>
-                                    <th>Trùng IP (hôm nay)</th>
-                                    <th>Trùng thiết bị</th>
-                                    <th>Lần gần nhất</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {(u.sharedLoginConflicts ?? []).map((conflict) => (
-                                    <tr key={conflict.accountId}>
-                                      <td>{`${conflict.fullName} (${conflict.username})`}</td>
-                                      <td>{conflict.ipConflictCountToday}</td>
-                                      <td>{conflict.deviceConflictCount}</td>
-                                      <td>{fmtDateTime(conflict.lastConflictAt)}</td>
-                                    </tr>
-                                  ))}
-                                  {(u.sharedLoginConflicts ?? []).length === 0 && (
-                                    <tr>
-                                      <td colSpan={4}>Không có dữ liệu</td>
-                                    </tr>
-                                  )}
-                                </tbody>
-                              </table>
-                            </section>
-                          )}
                         </div>
                       </td>
                     </tr>

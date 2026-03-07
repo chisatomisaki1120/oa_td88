@@ -32,11 +32,6 @@ enum WorkMode {
   OFFLINE
 }
 
-enum LoginConflictType {
-  IP
-  DEVICE
-}
-
 model User {
   id                String                  @id @default(cuid())
   username          String                  @unique
@@ -55,7 +50,6 @@ model User {
   allowedOffDaysPerMonth Int                @default(2)
   role              Role                    @default(EMPLOYEE)
   isActive          Boolean                 @default(true)
-  hasSharedLoginRisk Boolean                @default(false)
   createdAt         DateTime                @default(now())
   updatedAt         DateTime                @updatedAt
   deletedAt         DateTime?
@@ -63,8 +57,6 @@ model User {
   shiftAssignments  EmployeeShiftAssignment[]
   authSessions      AuthSession[]
   loginAccessLogs   LoginAccessLog[]
-  conflictEvents    LoginConflictEvent[]    @relation("userConflictEvents")
-  relatedConflicts  LoginConflictEvent[]    @relation("conflictWithUserEvents")
   createdClosures   MonthlyClosure[]        @relation("createdClosures")
   reopenedClosures  MonthlyClosure[]        @relation("reopenedClosures")
   auditLogs         AuditLog[]
@@ -225,20 +217,3 @@ model LoginSecurityConfig {
   updatedAt                       DateTime @updatedAt
 }
 
-model LoginConflictEvent {
-  id                 String            @id @default(cuid())
-  userId             String
-  conflictWithUserId String
-  conflictType       LoginConflictType
-  ipAddress          String
-  deviceKey          String
-  occurredDate       String
-  occurredAt         DateTime          @default(now())
-
-  user               User              @relation("userConflictEvents", fields: [userId], references: [id], onDelete: Cascade)
-  conflictWithUser   User              @relation("conflictWithUserEvents", fields: [conflictWithUserId], references: [id], onDelete: Cascade)
-
-  @@index([userId, occurredAt])
-  @@index([userId, occurredDate, conflictType])
-  @@index([conflictWithUserId, occurredAt])
-}

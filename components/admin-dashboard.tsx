@@ -82,7 +82,7 @@ function RankingTable({ title, rows, valueKey, valueLabel }: {
           {rows.map((r, i) => (
             <tr key={r.username}>
               <td>{i + 1}</td>
-              <td>{r.fullName}</td>
+              <td>{r.username}</td>
               <td style={{ color: "#b91c1c", fontWeight: 600 }}>{r[valueKey] as number}</td>
             </tr>
           ))}

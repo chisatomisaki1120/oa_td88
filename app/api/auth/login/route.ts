@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
 import { createHash } from "node:crypto";
-import { LoginConflictType } from "@prisma/client";
 import { z } from "zod";
 import { ok, fail } from "@/lib/api";
 import { createSession, SESSION_COOKIE, sessionCookieOptions, verifyPassword } from "@/lib/auth";
@@ -103,15 +102,6 @@ function isMobilePhoneRequest(request: NextRequest, userAgent: string, clientDev
   return isMobilePhoneByClientSignal(clientDevice);
 }
 
-async function markSharedRisk(userId: string, relatedUserIds: string[]) {
-  const allIds = Array.from(new Set([userId, ...relatedUserIds]));
-  if (allIds.length === 0) return;
-  await prisma.user.updateMany({
-    where: { id: { in: allIds } },
-    data: { hasSharedLoginRisk: true },
-  });
-}
-
 async function logFailedLoginAttempt(params: {
   usernameInput: string;
   ipAddress: string;
@@ -137,44 +127,6 @@ async function logFailedLoginAttempt(params: {
       isSharedDevice: Boolean(params.isSharedDevice),
     },
   });
-}
-
-async function logConflictEvents(
-  userId: string,
-  relatedUserIds: string[],
-  conflictType: LoginConflictType,
-  ipAddress: string,
-  deviceKey: string,
-  occurredDate: string,
-) {
-  const uniqueRelated = Array.from(new Set(relatedUserIds.filter((id) => id && id !== userId)));
-  if (uniqueRelated.length === 0) return;
-
-  const rows = uniqueRelated.flatMap((relatedUserId) => [
-    {
-      userId,
-      conflictWithUserId: relatedUserId,
-      conflictType,
-      ipAddress,
-      deviceKey,
-      occurredDate,
-    },
-    {
-      userId: relatedUserId,
-      conflictWithUserId: userId,
-      conflictType,
-      ipAddress,
-      deviceKey,
-      occurredDate,
-    },
-  ]);
-
-  try {
-    await prisma.loginConflictEvent.createMany({ data: rows });
-  } catch (error) {
-    const code = (error as { code?: string } | null)?.code;
-    if (code !== "P2021") throw error;
-  }
 }
 
 export async function POST(request: NextRequest) {
@@ -302,11 +254,6 @@ export async function POST(request: NextRequest) {
         isSharedIp: sameIp,
         isSharedDevice: sameDevice,
       });
-      await Promise.all([
-        sameIp ? logConflictEvents(user.id, relatedUserIds, LoginConflictType.IP, ip, deviceKey, todayVn) : Promise.resolve(),
-        sameDevice ? logConflictEvents(user.id, relatedUserIds, LoginConflictType.DEVICE, ip, deviceKey, todayVn) : Promise.resolve(),
-        markSharedRisk(user.id, relatedUserIds),
-      ]);
       return fail("Thiết bị này hoặc IP trong ngày đã đăng nhập tài khoản khác", 409);
     }
   }
@@ -328,13 +275,6 @@ export async function POST(request: NextRequest) {
   const sharedDeviceUserIds = sharedDeviceRows.map((r) => r.userId).filter((id): id is string => Boolean(id));
   const isSharedIp = sharedIpUserIds.length > 0;
   const isSharedDevice = sharedDeviceUserIds.length > 0;
-
-  const allSharedIds = [...sharedIpUserIds, ...sharedDeviceUserIds];
-  await Promise.all([
-    allSharedIds.length > 0 ? markSharedRisk(user.id, allSharedIds) : Promise.resolve(),
-    isSharedIp ? logConflictEvents(user.id, sharedIpUserIds, LoginConflictType.IP, ip, deviceKey, todayVn) : Promise.resolve(),
-    isSharedDevice ? logConflictEvents(user.id, sharedDeviceUserIds, LoginConflictType.DEVICE, ip, deviceKey, todayVn) : Promise.resolve(),
-  ]);
 
   if (securityConfig.enforceSingleDevicePerAccount) {
     await prisma.authSession.deleteMany({ where: { userId: user.id } });

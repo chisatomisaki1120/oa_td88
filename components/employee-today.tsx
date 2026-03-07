@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiJson } from "@/lib/client-api";
 import { attendanceStatusLabel, breakTypeLabel } from "@/lib/display-labels";
 import { fmtDateTime, fmtTime, VN_TIMEZONE } from "@/lib/time";
@@ -105,8 +105,24 @@ export default function EmployeeToday() {
     }
   }
 
+  const loadRef = useRef(load);
+  loadRef.current = load;
+
   useEffect(() => {
     load();
+  }, []);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") loadRef.current();
+    };
+    const onFocus = () => loadRef.current();
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onFocus);
+    };
   }, []);
 
   useEffect(() => {
@@ -116,7 +132,10 @@ export default function EmployeeToday() {
     return () => clearInterval(timer);
   }, []);
 
+  const postingRef = useRef(false);
   async function post(url: string, body?: unknown) {
+    if (postingRef.current) return;
+    postingRef.current = true;
     setLoading(true);
     setError("");
     setMessage("");
@@ -128,7 +147,9 @@ export default function EmployeeToday() {
       await load(currentMonth);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Thao tác thất bại");
+      await load().catch(() => {});
     } finally {
+      postingRef.current = false;
       setLoading(false);
     }
   }
