@@ -25,28 +25,6 @@ function resolveDbPath() {
   return path.isAbsolute(dbPath) ? dbPath : path.join(process.cwd(), dbPath);
 }
 
-function nowStamp() {
-  return new Date().toISOString().replace(/[:.]/g, "-");
-}
-
-function createSafetyBackup(dbPath: string) {
-  if (!fs.existsSync(dbPath)) return null;
-  const backupDir = path.join(process.cwd(), "backups", "before-import");
-  fs.mkdirSync(backupDir, { recursive: true });
-  const backupPath = path.join(backupDir, `db-before-import-${nowStamp()}.db`);
-  fs.copyFileSync(dbPath, backupPath);
-  // Keep only 7 most recent backups
-  const files = fs
-    .readdirSync(backupDir)
-    .filter((f) => f.endsWith(".db"))
-    .map((f) => ({ name: f, time: fs.statSync(path.join(backupDir, f)).mtimeMs }))
-    .sort((a, b) => b.time - a.time);
-  for (const file of files.slice(7)) {
-    fs.unlinkSync(path.join(backupDir, file.name));
-  }
-  return backupPath;
-}
-
 function insertRows(db: Database.Database, tableName: string, rows: Array<Record<string, unknown>>) {
   if (rows.length === 0) return;
   const columns = Object.keys(rows[0]);
@@ -82,7 +60,6 @@ export async function POST(request: NextRequest) {
 
   const dbPath = resolveDbPath();
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-  const backupPath = createSafetyBackup(dbPath);
 
   const db = new Database(dbPath);
   try {
@@ -125,7 +102,6 @@ export async function POST(request: NextRequest) {
 
   return ok({
     message: "Đã nhập dữ liệu DB từ JSON",
-    backupPath,
     importedBy: actor.username,
     importedAt: new Date().toISOString(),
   });

@@ -34,14 +34,13 @@ export default function ImportDbJson() {
       const payload = (await response.json().catch(() => ({}))) as {
         ok?: boolean;
         message?: string;
-        data?: { backupPath?: string };
       };
 
       if (!response.ok || !payload.ok) {
         throw new Error(payload.message ?? "Import thất bại");
       }
 
-      setMessage(`Đã nhập DB thành công${payload.data?.backupPath ? ` (backup: ${payload.data.backupPath})` : ""}. Nên restart tiến trình app nếu đang chạy production.`);
+      setMessage("Đã nhập DB thành công. Nên restart tiến trình app nếu đang chạy production.");
       setSelectedFile(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Import thất bại");
@@ -54,7 +53,7 @@ export default function ImportDbJson() {
     <div className="card">
       <h3 style={{ marginTop: 0 }}>Import DB JSON</h3>
       <p className="small" style={{ marginTop: 0 }}>
-        Nhập toàn bộ CSDL từ file JSON. Trước khi nhập, hệ thống tự backup.
+        Nhập toàn bộ CSDL từ file JSON. Nên backup thủ công trước khi nhập.
       </p>
       <form onSubmit={handleImport} className="row">
         <input

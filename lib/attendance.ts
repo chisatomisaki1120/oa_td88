@@ -249,6 +249,9 @@ export async function getOrCreateCurrentShiftAttendance(tx: Prisma.TransactionCl
   const today = vnDateString(now);
   const yesterday = shiftWorkDate(today, -1);
 
+  const schedule = await getActiveShiftForUser(userId, now);
+  const resolvedWorkDate = resolveWorkDateForShiftMoment(schedule, now);
+
   const openAttendance = await tx.attendanceDay.findFirst({
     where: {
       userId,
@@ -258,9 +261,15 @@ export async function getOrCreateCurrentShiftAttendance(tx: Prisma.TransactionCl
     },
     orderBy: { workDate: "desc" },
   });
-  if (openAttendance) return openAttendance;
 
-  const schedule = await getActiveShiftForUser(userId, now);
-  const workDate = resolveWorkDateForShiftMoment(schedule, now);
-  return getOrCreateAttendanceByWorkDate(tx, userId, workDate);
+  if (openAttendance) {
+    // If the open attendance is from the current resolved work date, return it normally
+    // (e.g. still within the same shift, or same-day re-check)
+    if (openAttendance.workDate === resolvedWorkDate) return openAttendance;
+
+    // Otherwise the shift has ended — auto-close the stale attendance as INCOMPLETE
+    await recalculateAttendanceDay(tx, openAttendance, schedule);
+  }
+
+  return getOrCreateAttendanceByWorkDate(tx, userId, resolvedWorkDate);
 }
