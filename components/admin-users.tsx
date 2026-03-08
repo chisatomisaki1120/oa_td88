@@ -3,7 +3,8 @@
 import { FormEvent, Fragment, useEffect, useState } from "react";
 import type { Role } from "@prisma/client";
 import { apiJson } from "@/lib/client-api";
-import { roleLabel, workModeLabel } from "@/lib/display-labels";
+import { roleLabel, workModeLabel, attendanceStatusLabel, warningLabel, parseWarnings } from "@/lib/display-labels";
+import { fmtDateTime } from "@/lib/time";
 import { ErrorMessage, SuccessMessage, EmptyState } from "@/components/ui-feedback";
 
 const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
@@ -28,9 +29,148 @@ type User = {
   allowedOffDaysPerMonth: number;
 };
 
+type AttendanceRow = {
+  id: string;
+  workDate: string;
+  status: string;
+  checkInAt: string | null;
+  checkOutAt: string | null;
+  workedMinutes: number | null;
+  isOffDay: boolean;
+  isDeducted: boolean;
+  offReason: string | null;
+  warningFlagsJson: string | string[];
+};
+
 type Props = {
   actorRole: Role;
 };
+
+function UserDetailPanel({
+  user,
+  month,
+  monthOptions,
+  rows,
+  loading,
+  onChangeMonth,
+}: {
+  user: User;
+  month: string;
+  monthOptions: string[];
+  rows: AttendanceRow[];
+  loading: boolean;
+  onChangeMonth: (m: string) => void;
+}) {
+  const sorted = [...rows].sort((a, b) => a.workDate.localeCompare(b.workDate));
+
+  // Compute warning stats
+  const allWarnings: string[] = [];
+  let lateCount = 0;
+  let earlyLeaveCount = 0;
+  let absentCount = 0;
+  let incompleteCount = 0;
+
+  for (const r of sorted) {
+    const ws = parseWarnings(r.warningFlagsJson);
+    allWarnings.push(...ws);
+    if (r.status === "LATE") lateCount++;
+    if (r.status === "EARLY_LEAVE") earlyLeaveCount++;
+    if (r.status === "ABSENT") absentCount++;
+    if (r.status === "INCOMPLETE") incompleteCount++;
+  }
+
+  const warningCounts = new Map<string, number>();
+  for (const w of allWarnings) {
+    warningCounts.set(w, (warningCounts.get(w) ?? 0) + 1);
+  }
+
+  return (
+    <div className="admin-users-inline-panel">
+      <h4 style={{ marginTop: 0 }}>Chi tiết chấm công: {user.fullName} ({user.username})</h4>
+      <div className="row" style={{ marginBottom: 12 }}>
+        <select value={month} onChange={(e) => onChangeMonth(e.target.value)}>
+          {monthOptions.map((m) => (
+            <option key={m} value={m}>{`Tháng ${m.slice(5, 7)}/${m.slice(0, 4)}`}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Warning summary */}
+      <div className="user-detail-summary">
+        <span className="summary-item">
+          <strong>Tổng ngày:</strong> {sorted.length}
+        </span>
+        {lateCount > 0 && (
+          <span className="summary-item warning">Đi muộn: {lateCount}</span>
+        )}
+        {earlyLeaveCount > 0 && (
+          <span className="summary-item warning">Về sớm: {earlyLeaveCount}</span>
+        )}
+        {absentCount > 0 && (
+          <span className="summary-item danger">Vắng mặt: {absentCount}</span>
+        )}
+        {incompleteCount > 0 && (
+          <span className="summary-item muted">Chưa đủ: {incompleteCount}</span>
+        )}
+        {Array.from(warningCounts.entries()).map(([w, count]) => (
+          <span key={w} className="summary-item warning">{warningLabel(w)}: {count}</span>
+        ))}
+      </div>
+
+      {loading ? (
+        <p style={{ color: "var(--muted)" }}>Đang tải...</p>
+      ) : sorted.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <div style={{ overflowX: "auto" }}>
+          <table className="user-detail-table">
+            <thead>
+              <tr>
+                <th>Ngày</th>
+                <th>Lên ca</th>
+                <th>Xuống ca</th>
+                <th>Làm việc</th>
+                <th>Trạng thái</th>
+                <th>Nghỉ</th>
+                <th>Cảnh báo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((r) => {
+                const ws = parseWarnings(r.warningFlagsJson);
+                const statusClass =
+                  r.status === "LATE" || r.status === "EARLY_LEAVE"
+                    ? "row-warning"
+                    : r.status === "ABSENT"
+                      ? "row-danger"
+                      : r.status === "INCOMPLETE"
+                        ? "row-muted"
+                        : "";
+                return (
+                  <tr key={r.id} className={statusClass}>
+                    <td>{r.workDate}</td>
+                    <td>{r.checkInAt ? fmtDateTime(r.checkInAt) : "-"}</td>
+                    <td>{r.checkOutAt ? fmtDateTime(r.checkOutAt) : "-"}</td>
+                    <td>
+                      {r.workedMinutes != null
+                        ? `${Math.floor(r.workedMinutes / 60)}h${r.workedMinutes % 60 > 0 ? (r.workedMinutes % 60) + "p" : ""}`
+                        : "-"}
+                    </td>
+                    <td>{attendanceStatusLabel(r.status)}</td>
+                    <td>{r.isOffDay ? (r.isDeducted ? "Không phép" : "Có phép") : "-"}</td>
+                    <td>
+                      {ws.length > 0 ? ws.map((w) => warningLabel(w)).join(", ") : "-"}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function AdminUsers({ actorRole }: Props) {
   const canAssignSuperAdmin = actorRole === "SUPER_ADMIN";
@@ -67,6 +207,13 @@ export default function AdminUsers({ actorRole }: Props) {
     password: "",
   });
 
+  const [detailUserId, setDetailUserId] = useState("");
+  const [detailMonth, setDetailMonth] = useState(
+    new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).slice(0, 7),
+  );
+  const [detailRows, setDetailRows] = useState<AttendanceRow[]>([]);
+  const [detailLoading, setDetailLoading] = useState(false);
+
   async function load() {
     try {
       const data = await apiJson<User[]>("/api/admin/users");
@@ -79,6 +226,53 @@ export default function AdminUsers({ actorRole }: Props) {
   useEffect(() => {
     load();
   }, []);
+
+  const monthOptions = (() => {
+    const startYear = 2026;
+    const startMonth = 3;
+    const [currentYear, currentMonth] = new Date()
+      .toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" })
+      .split("-")
+      .map(Number);
+    const currentKey = currentYear * 12 + currentMonth;
+    const startKey = startYear * 12 + startMonth;
+    const options: string[] = [];
+    for (let key = currentKey; key >= startKey; key -= 1) {
+      const year = Math.floor((key - 1) / 12);
+      const month = ((key - 1) % 12) + 1;
+      options.push(`${year}-${String(month).padStart(2, "0")}`);
+    }
+    return options;
+  })();
+
+  async function loadDetail(userId: string, month: string) {
+    setDetailLoading(true);
+    try {
+      const params = new URLSearchParams({ userId, month, limit: "500" });
+      const data = await apiJson<{ items: AttendanceRow[] }>(`/api/admin/attendance?${params}`);
+      setDetailRows(data.items);
+    } catch {
+      setDetailRows([]);
+    } finally {
+      setDetailLoading(false);
+    }
+  }
+
+  function openDetail(userId: string) {
+    if (detailUserId === userId) {
+      setDetailUserId("");
+      setDetailRows([]);
+      return;
+    }
+    setDetailUserId(userId);
+    setEditingId("");
+    loadDetail(userId, detailMonth);
+  }
+
+  function changeDetailMonth(month: string) {
+    setDetailMonth(month);
+    if (detailUserId) loadDetail(detailUserId, month);
+  }
 
   async function createUser(e: FormEvent) {
     e.preventDefault();
@@ -257,6 +451,9 @@ export default function AdminUsers({ actorRole }: Props) {
                     </td>
                     <td>
                       <div className="actions-col">
+                        <button className="edit-btn" onClick={() => openDetail(u.id)}>
+                          {detailUserId === u.id ? "Đóng" : "Chi tiết"}
+                        </button>
                         <button className="edit-btn" onClick={() => (showInlineEdit ? setEditingId("") : openEdit(u))}>
                           {showInlineEdit ? "Đóng" : "Sửa"}
                         </button>
@@ -324,6 +521,20 @@ export default function AdminUsers({ actorRole }: Props) {
                               </div>
                             </section>
                         </div>
+                      </td>
+                    </tr>
+                  )}
+                  {detailUserId === u.id && (
+                    <tr>
+                      <td colSpan={8}>
+                        <UserDetailPanel
+                          user={u}
+                          month={detailMonth}
+                          monthOptions={monthOptions}
+                          rows={detailRows}
+                          loading={detailLoading}
+                          onChangeMonth={changeDetailMonth}
+                        />
                       </td>
                     </tr>
                   )}

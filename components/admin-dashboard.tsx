@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { apiJson } from "@/lib/client-api";
 import { ErrorMessage } from "@/components/ui-feedback";
 
+type EmpInfo = { fullName: string; username: string };
+
 type DashboardData = {
   today: {
     date: string;
@@ -14,10 +16,28 @@ type DashboardData = {
     off: number;
     incomplete: number;
     notCheckedIn: number;
+    presentList: EmpInfo[];
+    lateList: EmpInfo[];
+    absentList: EmpInfo[];
+    offList: EmpInfo[];
+    incompleteList: EmpInfo[];
+    notCheckedInList: EmpInfo[];
   };
   month: {
     month: string;
-    dailyChart: Array<{ date: string; present: number; late: number; absent: number; off: number }>;
+    dailyChart: Array<{
+      date: string;
+      fullDate: string;
+      present: number;
+      late: number;
+      absent: number;
+      off: number;
+      presentList: EmpInfo[];
+      lateList: EmpInfo[];
+      absentList: EmpInfo[];
+      offList: EmpInfo[];
+      incompleteList: EmpInfo[];
+    }>;
   };
   rankings: {
     topLate: Array<{ fullName: string; username: string; late: number }>;
@@ -26,46 +46,144 @@ type DashboardData = {
   };
 };
 
-function StatCard({ label, value, color }: { label: string; value: number; color?: string }) {
-  return (
-    <div style={{ textAlign: "center", padding: 12 }}>
-      <div style={{ fontSize: 28, fontWeight: 700, color }}>{value}</div>
-      <div className="small">{label}</div>
-    </div>
-  );
-}
+const STAT_CONFIG: {
+  key: string;
+  label: string;
+  icon: string;
+  colorClass: string;
+  listKey?: keyof DashboardData["today"];
+  valueKey: keyof DashboardData["today"];
+}[] = [
+  { key: "total", label: "Tổng NV", icon: "👥", colorClass: "stat--default", valueKey: "totalEmployees" },
+  { key: "present", label: "Đi làm", icon: "✅", colorClass: "stat--success", valueKey: "present", listKey: "presentList" },
+  { key: "late", label: "Đi muộn", icon: "⏰", colorClass: "stat--danger", valueKey: "late", listKey: "lateList" },
+  { key: "absent", label: "Vắng mặt", icon: "❌", colorClass: "stat--danger", valueKey: "absent", listKey: "absentList" },
+  { key: "off", label: "Nghỉ phép", icon: "🏖️", colorClass: "stat--info", valueKey: "off", listKey: "offList" },
+  { key: "incomplete", label: "Chưa checkout", icon: "⚠️", colorClass: "stat--warning", valueKey: "incomplete", listKey: "incompleteList" },
+  { key: "notCheckedIn", label: "Chưa checkin", icon: "🔘", colorClass: "stat--muted", valueKey: "notCheckedIn", listKey: "notCheckedInList" },
+];
 
-function BarChart({ data, maxVal }: { data: DashboardData["month"]["dailyChart"]; maxVal: number }) {
-  if (data.length === 0) return <p className="small">Chưa có dữ liệu</p>;
-  const barW = Math.max(12, Math.floor(700 / data.length) - 2);
+function StatCards({ today, openStat, onToggle }: { today: DashboardData["today"]; openStat: string | null; onToggle: (k: string) => void }) {
   return (
-    <div style={{ overflowX: "auto" }}>
-      <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 150, minWidth: data.length * (barW + 2) }}>
-        {data.map((d) => {
-          const total = d.present + d.absent + d.off;
-          const h = total > 0 ? Math.round((total / Math.max(maxVal, 1)) * 130) : 0;
-          const lateH = d.late > 0 ? Math.max(4, Math.round((d.late / Math.max(total, 1)) * h)) : 0;
-          return (
-            <div key={d.date} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: barW }}>
-              <div style={{ width: "100%", height: h, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
-                {lateH > 0 && <div style={{ height: lateH, background: "#ef4444", borderRadius: "3px 3px 0 0" }} title={`Muộn: ${d.late}`} />}
-                <div style={{ flex: 1, background: "#14b8a6", borderRadius: lateH > 0 ? 0 : "3px 3px 0 0" }} title={`Đi làm: ${d.present}`} />
+    <div className="dash-stats">
+      {STAT_CONFIG.map((s) => {
+        const value = today[s.valueKey] as number;
+        const list = s.listKey ? (today[s.listKey] as EmpInfo[]) : undefined;
+        const clickable = list && list.length > 0;
+        const isOpen = openStat === s.key;
+        return (
+          <div
+            key={s.key}
+            className={`dash-stat ${s.colorClass}${clickable ? " clickable" : ""}${isOpen ? " open" : ""}`}
+            onClick={() => clickable && onToggle(s.key)}
+          >
+            <span className="dash-stat__icon">{s.icon}</span>
+            <span className="dash-stat__value">{value}</span>
+            <span className="dash-stat__label">{s.label}</span>
+            {isOpen && list && list.length > 0 && (
+              <div className="stat-dropdown" onClick={(e) => e.stopPropagation()}>
+                <div className="stat-dropdown-header">
+                  <strong>{s.label} ({list.length})</strong>
+                  <button className="stat-dropdown-close" onClick={() => onToggle(s.key)}>✕</button>
+                </div>
+                <ul className="stat-dropdown-list">
+                  {list.map((e) => <li key={e.username}>{e.username}</li>)}
+                </ul>
               </div>
-              <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}>{d.date}</div>
-            </div>
-          );
-        })}
-      </div>
-      <div style={{ display: "flex", gap: 12, marginTop: 8, fontSize: 12 }}>
-        <span><span style={{ display: "inline-block", width: 12, height: 12, background: "#14b8a6", borderRadius: 2 }} /> Đi làm</span>
-        <span><span style={{ display: "inline-block", width: 12, height: 12, background: "#ef4444", borderRadius: 2 }} /> Đi muộn</span>
-      </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-function RankingTable({ title, rows, valueKey, valueLabel }: {
+function BarChart({ data, maxVal, month }: { data: DashboardData["month"]["dailyChart"]; maxVal: number; month: string }) {
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+
+  // Build full list of days in the month
+  const [y, m] = month.split("-").map(Number);
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const dataMap = new Map(data.map((d) => [d.fullDate, d]));
+  const emptyDay = { present: 0, late: 0, absent: 0, off: 0, presentList: [], lateList: [], absentList: [], offList: [], incompleteList: [] } as const;
+
+  const allDays = Array.from({ length: daysInMonth }, (_, i) => {
+    const day = String(i + 1).padStart(2, "0");
+    const fullDate = `${month}-${day}`;
+    const existing = dataMap.get(fullDate);
+    return existing ?? { date: day, fullDate, ...emptyDay };
+  });
+
+  const selectedData = selectedDay ? allDays.find((d) => d.fullDate === selectedDay) : null;
+
+  return (
+    <>
+      <div className="dash-chart-scroll">
+        <div className="dash-chart-bars">
+          {allDays.map((d) => {
+            const total = d.present + d.absent + d.off;
+            const h = total > 0 ? Math.round((total / Math.max(maxVal, 1)) * 120) : 0;
+            const lateH = d.late > 0 ? Math.max(4, Math.round((d.late / Math.max(total, 1)) * h)) : 0;
+            const isSelected = selectedDay === d.fullDate;
+            const hasData = total > 0;
+            return (
+              <div
+                key={d.fullDate}
+                className={`dash-chart-col${isSelected ? " selected" : ""}${selectedDay && !isSelected ? " dimmed" : ""}${!hasData ? " empty" : ""}`}
+                onClick={() => hasData ? setSelectedDay((prev) => (prev === d.fullDate ? null : d.fullDate)) : undefined}
+              >
+                <div className="dash-chart-bar" style={{ height: h || 2 }}>
+                  {h > 0 && lateH > 0 && <div className="dash-chart-bar__late" style={{ height: lateH }} />}
+                  {h > 0 && <div className="dash-chart-bar__present" style={{ flex: 1 }} />}
+                  {h === 0 && <div className="dash-chart-bar__empty" style={{ flex: 1 }} />}
+                </div>
+                <span className="dash-chart-label">{d.date}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <div className="dash-chart-legend">
+        <span><span className="legend-dot" style={{ background: "#14b8a6" }} /> Đi làm</span>
+        <span><span className="legend-dot" style={{ background: "#ef4444" }} /> Đi muộn</span>
+      </div>
+      {selectedData && (
+        <div className="chart-day-detail">
+          <div className="chart-day-detail-header">
+            <strong>📅 Ngày {selectedData.fullDate}</strong>
+            <button className="stat-dropdown-close" onClick={() => setSelectedDay(null)}>✕</button>
+          </div>
+          <div className="chart-day-detail-grid">
+            {([
+              { list: selectedData.lateList, label: "Đi muộn", cls: "danger" },
+              { list: selectedData.absentList, label: "Vắng mặt", cls: "danger" },
+              { list: selectedData.offList, label: "Nghỉ phép", cls: "info" },
+              { list: selectedData.incompleteList, label: "Chưa checkout", cls: "warning" },
+            ] as const).map(
+              (col) =>
+                col.list.length > 0 && (
+                  <div className="chart-day-detail-col" key={col.label}>
+                    <div className={`chart-day-detail-label chart-day-detail-label--${col.cls}`}>
+                      {col.label} ({col.list.length})
+                    </div>
+                    <ul>
+                      {col.list.map((e) => (
+                        <li key={e.username}>{e.username}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ),
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function RankingTable({ title, icon, rows, valueKey, valueLabel }: {
   title: string;
+  icon: string;
   rows: Array<{ fullName: string; username: string; [k: string]: unknown }>;
   valueKey: string;
   valueLabel: string;
@@ -73,17 +191,17 @@ function RankingTable({ title, rows, valueKey, valueLabel }: {
   if (rows.length === 0) return null;
   return (
     <div>
-      <h4 style={{ marginTop: 0 }}>{title}</h4>
-      <table style={{ fontSize: 13 }}>
+      <h4 className="dash-ranking-title">{icon} {title}</h4>
+      <table className="dash-ranking-table">
         <thead>
           <tr><th>#</th><th>Nhân viên</th><th>{valueLabel}</th></tr>
         </thead>
         <tbody>
           {rows.map((r, i) => (
             <tr key={r.username}>
-              <td>{i + 1}</td>
+              <td className="dash-ranking-rank">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}</td>
               <td>{r.username}</td>
-              <td style={{ color: "#b91c1c", fontWeight: 600 }}>{r[valueKey] as number}</td>
+              <td className="dash-ranking-value">{r[valueKey] as number}</td>
             </tr>
           ))}
         </tbody>
@@ -95,6 +213,11 @@ function RankingTable({ title, rows, valueKey, valueLabel }: {
 export default function AdminDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState("");
+  const [openStat, setOpenStat] = useState<string | null>(null);
+
+  function toggleStat(key: string) {
+    setOpenStat((prev) => (prev === key ? null : key));
+  }
 
   useEffect(() => {
     apiJson<DashboardData>("/api/admin/dashboard")
@@ -103,42 +226,34 @@ export default function AdminDashboard() {
   }, []);
 
   if (error) return <div className="card"><ErrorMessage error={error} /></div>;
-  if (!data) return <div className="card">Đang tải...</div>;
+  if (!data) return <div className="card dash-loading">Đang tải...</div>;
 
   const t = data.today;
   const maxDaily = Math.max(...data.month.dailyChart.map((d) => d.present + d.absent + d.off), 1);
 
   return (
-    <>
+    <div className="dash">
       <div className="card">
-        <h3 style={{ marginTop: 0 }}>Tổng quan hôm nay — {t.date}</h3>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 8 }}>
-          <StatCard label="Tổng NV" value={t.totalEmployees} />
-          <StatCard label="Đi làm" value={t.present} color="#047857" />
-          <StatCard label="Đi muộn" value={t.late} color="#b91c1c" />
-          <StatCard label="Vắng mặt" value={t.absent} color="#b91c1c" />
-          <StatCard label="Nghỉ phép" value={t.off} color="#0369a1" />
-          <StatCard label="Chưa checkout" value={t.incomplete} color="#a16207" />
-          <StatCard label="Chưa checkin" value={t.notCheckedIn} color="#6b7280" />
-        </div>
+        <h3 className="dash-section-title">📊 Tổng quan hôm nay — {t.date}</h3>
+        <StatCards today={t} openStat={openStat} onToggle={toggleStat} />
       </div>
 
       <div className="card">
-        <h3 style={{ marginTop: 0 }}>Biểu đồ tháng {data.month.month}</h3>
-        <BarChart data={data.month.dailyChart} maxVal={maxDaily} />
+        <h3 className="dash-section-title">📈 Biểu đồ tháng {data.month.month}</h3>
+        <BarChart data={data.month.dailyChart} maxVal={maxDaily} month={data.month.month} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16 }}>
+      <div className="dash-rankings">
         <div className="card">
-          <RankingTable title="Top đi muộn" rows={data.rankings.topLate} valueKey="late" valueLabel="Số lần" />
+          <RankingTable title="Top đi muộn" icon="⏰" rows={data.rankings.topLate} valueKey="late" valueLabel="Số lần" />
         </div>
         <div className="card">
-          <RankingTable title="Top vắng mặt" rows={data.rankings.topAbsent} valueKey="absent" valueLabel="Số lần" />
+          <RankingTable title="Top vắng mặt" icon="❌" rows={data.rankings.topAbsent} valueKey="absent" valueLabel="Số lần" />
         </div>
         <div className="card">
-          <RankingTable title="Top cảnh báo" rows={data.rankings.topWarnings} valueKey="warnings" valueLabel="Số lần" />
+          <RankingTable title="Top cảnh báo" icon="⚠️" rows={data.rankings.topWarnings} valueKey="warnings" valueLabel="Số lần" />
         </div>
       </div>
-    </>
+    </div>
   );
 }

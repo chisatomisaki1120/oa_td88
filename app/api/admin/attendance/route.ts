@@ -12,16 +12,19 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const date = searchParams.get("date");
+  const month = searchParams.get("month");
   const department = searchParams.get("department");
   const userId = searchParams.get("userId");
   const limitRaw = Number(searchParams.get("limit") ?? String(ATTENDANCE_DEFAULT_LIMIT));
   const take = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.trunc(limitRaw), 1), ATTENDANCE_MAX_LIMIT) : ATTENDANCE_DEFAULT_LIMIT;
 
   if (date && !isValidDate(date)) return fail("Ngày không hợp lệ", 400);
+  if (month && !/^\d{4}-\d{2}$/.test(month)) return fail("Tháng không hợp lệ", 400);
 
   const page = Math.max(1, Number(searchParams.get("page") ?? "1") || 1);
   const where: Record<string, unknown> = {};
   if (date) where.workDate = date;
+  else if (month) where.workDate = { startsWith: month };
   if (userId) where.userId = userId;
 
   const [items, total] = await Promise.all([
