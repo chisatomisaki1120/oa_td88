@@ -19,31 +19,35 @@ export async function POST(request: NextRequest) {
   const payload = schema.safeParse(await request.json().catch(() => null));
   if (!payload.success) return fail("Invalid payload", 400, payload.error.flatten());
 
-  const closure = await prisma.monthlyClosure.upsert({
-    where: { month: payload.data.month },
-    update: {
-      closedAt: new Date(),
-      closedBy: actor.id,
-      reopenedAt: null,
-      reopenedBy: null,
-      note: payload.data.note,
-    },
-    create: {
-      month: payload.data.month,
-      closedAt: new Date(),
-      closedBy: actor.id,
-      note: payload.data.note,
-    },
-  });
+  const closure = await prisma.$transaction(async (tx) => {
+    const result = await tx.monthlyClosure.upsert({
+      where: { month: payload.data.month },
+      update: {
+        closedAt: new Date(),
+        closedBy: actor.id,
+        reopenedAt: null,
+        reopenedBy: null,
+        note: payload.data.note,
+      },
+      create: {
+        month: payload.data.month,
+        closedAt: new Date(),
+        closedBy: actor.id,
+        note: payload.data.note,
+      },
+    });
 
-  await prisma.auditLog.create({
-    data: {
-      actorUserId: actor.id,
-      action: "MONTHLY_CLOSE",
-      entityType: "MonthlyClosure",
-      entityId: closure.id,
-      afterJson: JSON.stringify(closure),
-    },
+    await tx.auditLog.create({
+      data: {
+        actorUserId: actor.id,
+        action: "MONTHLY_CLOSE",
+        entityType: "MonthlyClosure",
+        entityId: result.id,
+        afterJson: JSON.stringify(result),
+      },
+    });
+
+    return result;
   });
 
   return ok(closure);

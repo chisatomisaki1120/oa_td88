@@ -22,24 +22,28 @@ export async function POST(request: NextRequest) {
   const existing = await prisma.monthlyClosure.findUnique({ where: { month: payload.data.month } });
   if (!existing) return fail("Tháng này chưa được chốt", 404);
 
-  const closure = await prisma.monthlyClosure.update({
-    where: { month: payload.data.month },
-    data: {
-      reopenedAt: new Date(),
-      reopenedBy: actor.id,
-      note: payload.data.note ?? existing.note,
-    },
-  });
+  const closure = await prisma.$transaction(async (tx) => {
+    const result = await tx.monthlyClosure.update({
+      where: { month: payload.data.month },
+      data: {
+        reopenedAt: new Date(),
+        reopenedBy: actor.id,
+        note: payload.data.note ?? existing.note,
+      },
+    });
 
-  await prisma.auditLog.create({
-    data: {
-      actorUserId: actor.id,
-      action: "MONTHLY_REOPEN",
-      entityType: "MonthlyClosure",
-      entityId: closure.id,
-      beforeJson: JSON.stringify(existing),
-      afterJson: JSON.stringify(closure),
-    },
+    await tx.auditLog.create({
+      data: {
+        actorUserId: actor.id,
+        action: "MONTHLY_REOPEN",
+        entityType: "MonthlyClosure",
+        entityId: result.id,
+        beforeJson: JSON.stringify(existing),
+        afterJson: JSON.stringify(result),
+      },
+    });
+
+    return result;
   });
 
   return ok(closure);

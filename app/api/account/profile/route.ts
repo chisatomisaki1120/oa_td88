@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { WorkMode } from "@prisma/client";
+import { Role, WorkMode } from "@prisma/client";
 import { z } from "zod";
 import { fail, ok } from "@/lib/api";
 import { hashPassword, verifyPassword } from "@/lib/auth";
@@ -105,11 +105,15 @@ export async function PATCH(request: NextRequest) {
   if (payload.data.department !== undefined) data.department = payload.data.department || null;
   if (payload.data.newPassword) data.passwordHash = await hashPassword(payload.data.newPassword);
 
-  if (payload.data.workStartTime !== undefined) data.workStartTime = payload.data.workStartTime || null;
-  if (payload.data.workEndTime !== undefined) data.workEndTime = payload.data.workEndTime || null;
-  if (payload.data.lateGraceMinutes !== undefined) data.lateGraceMinutes = payload.data.lateGraceMinutes;
-  if (payload.data.earlyLeaveGraceMinutes !== undefined) data.earlyLeaveGraceMinutes = payload.data.earlyLeaveGraceMinutes;
-  if (payload.data.workMode !== undefined) data.workMode = payload.data.workMode;
+  // Only ADMIN/SUPER_ADMIN can modify work schedule fields
+  const isAdmin = user.role === Role.ADMIN || user.role === Role.SUPER_ADMIN;
+  if (isAdmin) {
+    if (payload.data.workStartTime !== undefined) data.workStartTime = payload.data.workStartTime || null;
+    if (payload.data.workEndTime !== undefined) data.workEndTime = payload.data.workEndTime || null;
+    if (payload.data.lateGraceMinutes !== undefined) data.lateGraceMinutes = payload.data.lateGraceMinutes;
+    if (payload.data.earlyLeaveGraceMinutes !== undefined) data.earlyLeaveGraceMinutes = payload.data.earlyLeaveGraceMinutes;
+    if (payload.data.workMode !== undefined) data.workMode = payload.data.workMode;
+  }
 
   const updated = await prisma.user.update({
     where: { id: user.id },

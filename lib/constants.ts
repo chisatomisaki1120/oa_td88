@@ -23,6 +23,7 @@ export const WARNING_FLAGS = [
   "WC_SMOKE_DURATION_EXCEEDED",
   "MEAL_DURATION_EXCEEDED",
   "EARLY_LEAVE",
+  "LATE",
 ] as const;
 
 /** Time format regex (strict: 00:00 - 23:59) */

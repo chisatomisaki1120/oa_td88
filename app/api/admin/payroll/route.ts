@@ -3,15 +3,8 @@ import { Role } from "@prisma/client";
 import { fail, ok } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { requireRoleRequest } from "@/lib/rbac";
-
-function parseWarnings(raw: string): string[] {
-  try { return JSON.parse(raw) as string[]; } catch { return []; }
-}
-
-function parseHHMM(value: string): number {
-  const [h, m] = value.split(":").map(Number);
-  return h * 60 + m;
-}
+import { parseWarnings } from "@/lib/attendance";
+import { parseHHMM } from "@/lib/time";
 
 export async function GET(request: NextRequest) {
   const actor = await requireRoleRequest(request, [Role.ADMIN, Role.SUPER_ADMIN]);

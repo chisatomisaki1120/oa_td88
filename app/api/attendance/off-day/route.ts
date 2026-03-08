@@ -7,6 +7,7 @@ import { assertMonthUnlocked, getOrCreateTodayAttendance } from "@/lib/attendanc
 import { prisma } from "@/lib/prisma";
 import { validateCsrf } from "@/lib/csrf";
 import { vnDateString } from "@/lib/time";
+import { consumeApiRateLimit } from "@/lib/rate-limit";
 
 const schema = z.object({
   reason: z.string().max(300).optional(),
@@ -17,13 +18,17 @@ export async function POST(request: NextRequest) {
   const user = await getSessionUserFromRequest(request);
   if (!user) return fail("Unauthorized", 401);
 
+  const rl = consumeApiRateLimit(`off-day:${user.id}`);
+  if (!rl.allowed) return fail(`Vui lòng thử lại sau ${rl.retryAfterSeconds}s`, 429);
+
   const payload = schema.safeParse(await request.json().catch(() => ({})));
   if (!payload.success) return fail("Invalid payload", 400, payload.error.flatten());
 
   const workDate = vnDateString();
-  if (!(await assertMonthUnlocked(workDate))) return fail("Tháng này đã khóa công", 409);
 
   const result = await prisma.$transaction(async (tx) => {
+    if (!(await assertMonthUnlocked(workDate, tx))) throw new Error("MONTH_LOCKED");
+
     const today = await getOrCreateTodayAttendance(tx, user.id);
 
     if (today.checkInAt || today.checkOutAt) throw new Error("ALREADY_ATTENDED");
@@ -64,6 +69,7 @@ export async function POST(request: NextRequest) {
     return e.message;
   });
 
+  if (result === "MONTH_LOCKED") return fail("Tháng này đã khóa công", 409);
   if (result === "ALREADY_ATTENDED") return fail("Bạn đã check-in/check-out, không thể báo off", 409);
   if (result === "ALREADY_OFF") return fail("Bạn đã báo off hôm nay", 409);
   if (result === "USER_NOT_FOUND") return fail("Không tìm thấy tài khoản", 404);

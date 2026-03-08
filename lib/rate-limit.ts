@@ -4,9 +4,21 @@ import { LOGIN_WINDOW_MS, LOGIN_MAX_ATTEMPTS } from "@/lib/constants";
 const apiRateLimitStore = new Map<string, { count: number; resetAt: number }>();
 const API_RATE_WINDOW_MS = 60_000;
 const API_RATE_MAX = 60;
+let lastCleanup = Date.now();
+const CLEANUP_INTERVAL_MS = 5 * 60_000; // Sweep expired entries every 5 minutes
+
+function cleanupExpiredEntries() {
+  const now = Date.now();
+  if (now - lastCleanup < CLEANUP_INTERVAL_MS) return;
+  lastCleanup = now;
+  for (const [key, entry] of apiRateLimitStore) {
+    if (now >= entry.resetAt) apiRateLimitStore.delete(key);
+  }
+}
 
 export function consumeApiRateLimit(key: string): { allowed: boolean; retryAfterSeconds?: number } {
   const now = Date.now();
+  cleanupExpiredEntries();
   const entry = apiRateLimitStore.get(key);
   if (!entry || now >= entry.resetAt) {
     apiRateLimitStore.set(key, { count: 1, resetAt: now + API_RATE_WINDOW_MS });

@@ -3,12 +3,7 @@ import { Role } from "@prisma/client";
 import { fail, ok } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { requireRoleRequest } from "@/lib/rbac";
-import { vnMonthString } from "@/lib/time";
-
-function parseHHMM(value: string): number {
-  const [h, m] = value.split(":").map(Number);
-  return h * 60 + m;
-}
+import { vnMonthString, parseHHMM } from "@/lib/time";
 
 // GET /api/admin/overtime?month=YYYY-MM
 export async function GET(request: NextRequest) {

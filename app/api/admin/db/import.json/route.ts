@@ -1,4 +1,5 @@
-import { execSync } from "node:child_process";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
@@ -91,10 +92,10 @@ export async function POST(request: NextRequest) {
   }
 
   // Sync schema: add any columns missing from the old backup
+  const execFileAsync = promisify(execFile);
   try {
-    execSync("npx prisma db push --accept-data-loss --config prisma.config.ts", {
+    await execFileAsync("npx", ["prisma", "db", "push", "--accept-data-loss", "--config", "prisma.config.ts"], {
       cwd: process.cwd(),
-      stdio: "pipe",
     });
   } catch {
     // non-fatal: data is already imported

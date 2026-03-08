@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
     const payload = {
       meta: {
         exportedAt: new Date().toISOString(),
-        databasePath: dbPath,
+        databaseFile: path.basename(dbPath),
         exportedBy: actor.username,
       },
       schema: filteredSchema,

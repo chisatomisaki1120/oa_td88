@@ -25,6 +25,13 @@ export async function POST(request: NextRequest) {
     return fail("Ngày kết thúc phải sau ngày bắt đầu", 400);
   }
 
+  const [userExists, shiftExists] = await Promise.all([
+    prisma.user.findUnique({ where: { id: payload.data.userId }, select: { id: true } }),
+    prisma.shift.findUnique({ where: { id: payload.data.shiftId }, select: { id: true } }),
+  ]);
+  if (!userExists) return fail("Nhân viên không tồn tại", 404);
+  if (!shiftExists) return fail("Ca làm việc không tồn tại", 404);
+
   const assignment = await prisma.employeeShiftAssignment.create({
     data: {
       userId: payload.data.userId,
@@ -32,9 +39,7 @@ export async function POST(request: NextRequest) {
       effectiveFrom: new Date(payload.data.effectiveFrom),
       effectiveTo: payload.data.effectiveTo ? new Date(payload.data.effectiveTo) : null,
     },
-  }).catch(() => null);
-
-  if (!assignment) return fail("Không thể gán ca", 400);
+  });
 
   return ok(assignment, { status: 201 });
 }

@@ -92,6 +92,11 @@ export async function POST(request: NextRequest) {
   });
   const userMap = new Map(users.map((u) => [u.username, u.id]));
 
+  // Batch-load all month closures to avoid N+1 queries
+  const allMonths = [...new Set(rawRows.map((r) => parseExcelDate(r[dateCol])).filter(Boolean).map((d) => d!.slice(0, 7)))];
+  const closures = await prisma.monthlyClosure.findMany({ where: { month: { in: allMonths } } });
+  const lockedMonths = new Set(closures.filter((c) => !c.reopenedAt).map((c) => c.month));
+
   const results: ImportRow[] = [];
   let imported = 0;
   let skipped = 0;
@@ -111,10 +116,8 @@ export async function POST(request: NextRequest) {
     const userId = userMap.get(username);
     if (!userId) { row.error = "Không tìm thấy nhân viên"; skipped++; results.push(row); continue; }
 
-    // Check month locked
-    const month = workDate.slice(0, 7);
-    const closure = await prisma.monthlyClosure.findUnique({ where: { month } });
-    if (closure && !closure.reopenedAt) { row.error = "Tháng đã khóa"; skipped++; results.push(row); continue; }
+    // Check month locked (using pre-loaded data)
+    if (lockedMonths.has(workDate.slice(0, 7))) { row.error = "Tháng đã khóa"; skipped++; results.push(row); continue; }
 
     const checkInAt = checkInTime ? new Date(`${workDate}T${checkInTime}:00.000+07:00`) : null;
     const checkOutAt = checkOutTime ? new Date(`${workDate}T${checkOutTime}:00.000+07:00`) : null;

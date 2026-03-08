@@ -19,11 +19,11 @@ export async function POST(request: NextRequest) {
     .$transaction(async (tx) => {
       const now = new Date();
       const today = await getOrCreateCurrentShiftAttendance(tx, user.id, now);
-      if (!(await assertMonthUnlocked(today.workDate))) throw new Error("MONTH_LOCKED");
+      if (!(await assertMonthUnlocked(today.workDate, tx))) throw new Error("MONTH_LOCKED");
       if (today.checkInAt) throw new Error("ALREADY_CHECKED_IN");
       if (today.isOffDay) throw new Error("OFF_DAY");
 
-      const shift = await getActiveShiftForUser(user.id, now);
+      const shift = await getActiveShiftForUser(user.id, now, tx);
       const status = computeCheckInStatus(shift, now);
 
       return tx.attendanceDay.update({

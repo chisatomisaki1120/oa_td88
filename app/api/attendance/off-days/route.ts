@@ -5,6 +5,7 @@ import { fail, ok } from "@/lib/api";
 import { getSessionUserFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { validateCsrf } from "@/lib/csrf";
+import { consumeApiRateLimit } from "@/lib/rate-limit";
 
 const schema = z.object({
   dates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).min(1).max(62),
@@ -22,6 +23,9 @@ export async function POST(request: NextRequest) {
   if (!validateCsrf(request)) return fail("Invalid CSRF token", 403);
   const user = await getSessionUserFromRequest(request);
   if (!user) return fail("Unauthorized", 401);
+
+  const rl = consumeApiRateLimit(`off-days:${user.id}`);
+  if (!rl.allowed) return fail(`Vui lòng thử lại sau ${rl.retryAfterSeconds}s`, 429);
 
   const payload = schema.safeParse(await request.json().catch(() => null));
   if (!payload.success) return fail("Invalid payload", 400, payload.error.flatten());

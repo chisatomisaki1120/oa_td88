@@ -5,10 +5,7 @@ import { fail } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { requireRoleRequest } from "@/lib/rbac";
 import { parseHHMM, fmtMinutesToHours } from "@/lib/time";
-
-function parseWarnings(raw: string): string[] {
-  try { return JSON.parse(raw) as string[]; } catch { return []; }
-}
+import { parseWarnings } from "@/lib/attendance";
 
 export async function GET(request: NextRequest) {
   const actor = await requireRoleRequest(request, [Role.ADMIN, Role.SUPER_ADMIN]);

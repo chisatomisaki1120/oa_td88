@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
 
   const result = await prisma.$transaction(async (tx) => {
     const today = await getOrCreateCurrentShiftAttendance(tx, user.id, new Date());
-    if (!(await assertMonthUnlocked(today.workDate))) throw new Error("MONTH_LOCKED");
+    if (!(await assertMonthUnlocked(today.workDate, tx))) throw new Error("MONTH_LOCKED");
     if (!today.checkInAt) throw new Error("NO_CHECKIN");
     if (today.checkOutAt) throw new Error("ALREADY_CHECKOUT");
 

@@ -4,10 +4,7 @@ import { fail, ok } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { requireRoleRequest } from "@/lib/rbac";
 import { vnDateString, vnMonthString } from "@/lib/time";
-
-function parseWarnings(raw: string): string[] {
-  try { return JSON.parse(raw) as string[]; } catch { return []; }
-}
+import { parseWarnings } from "@/lib/attendance";
 
 export async function GET(request: NextRequest) {
   const actor = await requireRoleRequest(request, [Role.ADMIN, Role.SUPER_ADMIN]);
@@ -16,31 +13,45 @@ export async function GET(request: NextRequest) {
   const today = vnDateString();
   const month = vnMonthString();
 
-  // Today's stats
-  const totalEmployees = await prisma.user.count({ where: { role: "EMPLOYEE", isActive: true, deletedAt: null } });
-  const todayAttendance = await prisma.attendanceDay.findMany({
-    where: { workDate: today },
-    include: { user: { select: { id: true, fullName: true, username: true } } },
-  });
+  // Parallel queries for today's stats, monthly stats, and employee list
+  const [totalEmployees, todayAttendance, monthAttendance, allEmployees] = await Promise.all([
+    prisma.user.count({ where: { role: "EMPLOYEE", isActive: true, deletedAt: null } }),
+    prisma.attendanceDay.findMany({
+      where: { workDate: today },
+      include: { user: { select: { id: true, fullName: true, username: true } } },
+    }),
+    prisma.attendanceDay.findMany({
+      where: { workDate: { gte: `${month}-01`, lte: `${month}-31` } },
+      include: { user: { select: { id: true, fullName: true, username: true } } },
+    }),
+    prisma.user.findMany({
+      where: { role: "EMPLOYEE", isActive: true, deletedAt: null },
+      select: { id: true, fullName: true, username: true },
+    }),
+  ]);
 
-  const presentList = todayAttendance.filter((a) => a.status === "PRESENT" || a.status === "LATE" || a.status === "EARLY_LEAVE").map((a) => ({ fullName: a.user.fullName, username: a.user.username }));
-  const lateList = todayAttendance.filter((a) => a.status === "LATE").map((a) => ({ fullName: a.user.fullName, username: a.user.username }));
-  const absentList = todayAttendance.filter((a) => a.status === "ABSENT").map((a) => ({ fullName: a.user.fullName, username: a.user.username }));
-  const offList = todayAttendance.filter((a) => a.isOffDay).map((a) => ({ fullName: a.user.fullName, username: a.user.username }));
-  const incompleteList = todayAttendance.filter((a) => a.status === "INCOMPLETE").map((a) => ({ fullName: a.user.fullName, username: a.user.username }));
+  // Classify today's attendance in a single pass
+  type EmpRef = { fullName: string; username: string };
+  const presentList: EmpRef[] = [];
+  const lateList: EmpRef[] = [];
+  const absentList: EmpRef[] = [];
+  const offList: EmpRef[] = [];
+  const incompleteList: EmpRef[] = [];
+  const checkedInUserIds = new Set<string>();
 
-  const checkedInUserIds = new Set(todayAttendance.map((a) => a.userId));
-  const notCheckedInUsers = await prisma.user.findMany({
-    where: { role: "EMPLOYEE", isActive: true, deletedAt: null, id: { notIn: [...checkedInUserIds] } },
-    select: { fullName: true, username: true },
-  });
-  const notCheckedInList = notCheckedInUsers.map((u) => ({ fullName: u.fullName, username: u.username }));
+  for (const a of todayAttendance) {
+    const emp = { fullName: a.user.fullName, username: a.user.username };
+    checkedInUserIds.add(a.userId);
+    if (a.status === "PRESENT" || a.status === "LATE" || a.status === "EARLY_LEAVE") presentList.push(emp);
+    if (a.status === "LATE") lateList.push(emp);
+    if (a.status === "ABSENT") absentList.push(emp);
+    if (a.status === "INCOMPLETE") incompleteList.push(emp);
+    if (a.isOffDay) offList.push(emp);
+  }
 
-  // Monthly stats
-  const monthAttendance = await prisma.attendanceDay.findMany({
-    where: { workDate: { gte: `${month}-01`, lte: `${month}-31` } },
-    include: { user: { select: { id: true, fullName: true, username: true } } },
-  });
+  const notCheckedInList = allEmployees
+    .filter((u) => !checkedInUserIds.has(u.id))
+    .map((u) => ({ fullName: u.fullName, username: u.username }));
 
   // Per-employee monthly aggregates
   type EmpStats = { fullName: string; username: string; late: number; absent: number; warnings: number; offDays: number };
@@ -58,7 +69,6 @@ export async function GET(request: NextRequest) {
   }
 
   // Monthly daily breakdown (for chart)
-  type EmpRef = { fullName: string; username: string };
   type DailyEntry = {
     present: number; late: number; absent: number; off: number;
     presentList: EmpRef[]; lateList: EmpRef[]; absentList: EmpRef[]; offList: EmpRef[]; incompleteList: EmpRef[];

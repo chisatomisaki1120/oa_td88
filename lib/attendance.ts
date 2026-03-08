@@ -20,8 +20,9 @@ export const DEFAULT_BREAK_POLICY: BreakPolicy = {
   meal: { maxCount: 2, maxMinutesEach: 40 },
 };
 
-export async function getActiveShiftForUser(userId: string, atDate: Date = new Date()): Promise<WorkSchedule | null> {
-  const user = await prisma.user.findUnique({
+export async function getActiveShiftForUser(userId: string, atDate: Date = new Date(), tx?: Prisma.TransactionClient): Promise<WorkSchedule | null> {
+  const db = tx ?? prisma;
+  const user = await db.user.findUnique({
     where: { id: userId },
     select: {
       workStartTime: true,
@@ -42,7 +43,7 @@ export async function getActiveShiftForUser(userId: string, atDate: Date = new D
     };
   }
 
-  const assigned = await prisma.employeeShiftAssignment.findFirst({
+  const assigned = await db.employeeShiftAssignment.findFirst({
     where: {
       userId,
       effectiveFrom: { lte: atDate },
@@ -74,8 +75,9 @@ export async function getActiveShiftForUser(userId: string, atDate: Date = new D
   };
 }
 
-export async function assertMonthUnlocked(workDate: string): Promise<boolean> {
-  const closure = await prisma.monthlyClosure.findUnique({ where: { month: workDate.slice(0, 7) } });
+export async function assertMonthUnlocked(workDate: string, tx?: Prisma.TransactionClient): Promise<boolean> {
+  const db = tx ?? prisma;
+  const closure = await db.monthlyClosure.findUnique({ where: { month: workDate.slice(0, 7) } });
   return !closure || Boolean(closure.reopenedAt);
 }
 
@@ -213,7 +215,9 @@ export async function recalculateAttendanceDay(
   } else {
     const totalBreak = breaks.reduce((acc, item) => acc + (item.durationMinutesComputed ?? 0), 0);
     workedMinutes = Math.max(0, minutesBetween(attendanceDay.checkInAt, attendanceDay.checkOutAt) - totalBreak);
-    status = withEarlyLeaveWarning(computeCheckInStatus(schedule, attendanceDay.checkInAt), schedule, attendanceDay.checkInAt, attendanceDay.checkOutAt, warnings);
+    const checkInStatus = computeCheckInStatus(schedule, attendanceDay.checkInAt);
+    if (checkInStatus === AttendanceStatus.LATE) warnings.push("LATE");
+    status = withEarlyLeaveWarning(checkInStatus, schedule, attendanceDay.checkInAt, attendanceDay.checkOutAt, warnings);
   }
 
   return tx.attendanceDay.update({
@@ -249,7 +253,7 @@ export async function getOrCreateCurrentShiftAttendance(tx: Prisma.TransactionCl
   const today = vnDateString(now);
   const yesterday = shiftWorkDate(today, -1);
 
-  const schedule = await getActiveShiftForUser(userId, now);
+  const schedule = await getActiveShiftForUser(userId, now, tx);
   const resolvedWorkDate = resolveWorkDateForShiftMoment(schedule, now);
 
   const openAttendance = await tx.attendanceDay.findFirst({

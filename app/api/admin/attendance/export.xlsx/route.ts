@@ -4,6 +4,7 @@ import { Role } from "@prisma/client";
 import { fail } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { requireRoleRequest } from "@/lib/rbac";
+import { parseWarnings } from "@/lib/attendance";
 
 type EmployeeSummary = {
   employeeName: string;
@@ -15,14 +16,6 @@ type EmployeeSummary = {
   breakExceededCount: number;
   offDayCount: number;
 };
-
-function parseWarnings(raw: string): string[] {
-  try {
-    return JSON.parse(raw) as string[];
-  } catch {
-    return [];
-  }
-}
 
 export async function GET(request: NextRequest) {
   const actor = await requireRoleRequest(request, [Role.ADMIN, Role.SUPER_ADMIN]);

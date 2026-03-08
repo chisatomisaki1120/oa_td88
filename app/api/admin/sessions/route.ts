@@ -37,8 +37,15 @@ export async function DELETE(request: NextRequest) {
   const sessionId = body?.sessionId;
   if (!sessionId || typeof sessionId !== "string") return fail("sessionId is required", 400);
 
-  const session = await prisma.authSession.findUnique({ where: { id: sessionId } });
+  const session = await prisma.authSession.findUnique({
+    where: { id: sessionId },
+    include: { user: { select: { role: true } } },
+  });
   if (!session) return fail("Phiên không tồn tại", 404);
+
+  if (session.user.role === Role.SUPER_ADMIN && user.role !== Role.SUPER_ADMIN) {
+    return fail("Admin không được thu hồi phiên của SuperAdmin", 403);
+  }
 
   await prisma.authSession.delete({ where: { id: sessionId } });
   return ok({ deleted: sessionId });
