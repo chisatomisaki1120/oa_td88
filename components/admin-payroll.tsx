@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { apiJson } from "@/lib/client-api";
+import { buildMonthOptions, currentMonthVn } from "@/lib/time";
 import { ErrorMessage, EmptyState } from "@/components/ui-feedback";
 
 type PayrollRow = {
@@ -25,24 +26,11 @@ type PayrollRow = {
 
 
 export default function AdminPayroll() {
-  const [month, setMonth] = useState(() =>
-    new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).slice(0, 7)
-  );
+  const [month, setMonth] = useState(currentMonthVn);
   const [rows, setRows] = useState<PayrollRow[]>([]);
   const [error, setError] = useState("");
 
-  const monthOptions = useMemo(() => {
-    const [cy, cm] = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).split("-").map(Number);
-    const currentKey = cy * 12 + cm;
-    const startKey = 2026 * 12 + 3;
-    const opts: string[] = [];
-    for (let k = currentKey; k >= startKey; k--) {
-      const y = Math.floor((k - 1) / 12);
-      const m = ((k - 1) % 12) + 1;
-      opts.push(`${y}-${String(m).padStart(2, "0")}`);
-    }
-    return opts;
-  }, []);
+  const monthOptions = useMemo(() => buildMonthOptions(), []);
 
   async function load() {
     setError("");

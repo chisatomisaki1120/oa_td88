@@ -3,27 +3,14 @@ import DashboardShell from "@/components/dashboard-shell";
 import AccountProfile from "@/components/account-profile";
 import SessionManager from "@/components/session-manager";
 import { getSessionUserFromCookies } from "@/lib/auth";
+import { getNavLinks } from "@/lib/nav-links";
 
 export default async function AccountPage() {
   const user = await getSessionUserFromCookies();
   if (!user) redirect("/login");
 
-  const links = [{ href: "/account", label: "Tài khoản" }];
-  if (user.role === "EMPLOYEE") {
-    links.unshift({ href: "/employee/today", label: "Hôm nay" }, { href: "/employee/history", label: "Lịch sử" });
-  } else {
-    links.unshift(
-      { href: "/admin/attendance", label: "Chấm công" },
-      { href: "/admin/users", label: "Nhân sự" },
-      { href: "/admin/shifts", label: "Ca làm" },
-      { href: "/admin/payroll", label: "Bảng lương" },
-      { href: "/admin/dashboard", label: "Thống kê" },
-      { href: "/admin/settings", label: "Cài đặt" },
-    );
-  }
-
   return (
-    <DashboardShell fullName={user.fullName} role={user.role} links={links}>
+    <DashboardShell fullName={user.fullName} role={user.role} links={getNavLinks(user.role)}>
       <AccountProfile />
       <SessionManager />
     </DashboardShell>

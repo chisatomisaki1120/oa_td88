@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { apiJson } from "@/lib/client-api";
 import { attendanceStatusLabel, parseWarnings } from "@/lib/display-labels";
-import { fmtDateTime } from "@/lib/time";
+import { fmtDateTime, buildMonthOptions, currentDateVn, currentMonthVn } from "@/lib/time";
 import { ErrorMessage, EmptyState, SuccessMessage } from "@/components/ui-feedback";
 
 type Row = {
@@ -40,8 +40,8 @@ type UserOption = {
 };
 
 export default function AdminAttendance() {
-  const [date, setDate] = useState(new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }));
-  const [exportMonth, setExportMonth] = useState(new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).slice(0, 7));
+  const [date, setDate] = useState(currentDateVn);
+  const [exportMonth, setExportMonth] = useState(currentMonthVn);
   const [rows, setRows] = useState<Row[]>([]);
   const [error, setError] = useState("");
   const [editingId, setEditingId] = useState("");
@@ -55,21 +55,7 @@ export default function AdminAttendance() {
   const [filterUserId, setFilterUserId] = useState("");
   const [users, setUsers] = useState<UserOption[]>([]);
 
-  const exportMonthOptions = useMemo(() => {
-    const startYear = 2026;
-    const startMonth = 3;
-    const [currentYear, currentMonth] = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).split("-").map(Number);
-    const currentKey = currentYear * 12 + currentMonth;
-    const startKey = startYear * 12 + startMonth;
-
-    const options: string[] = [];
-    for (let key = currentKey; key >= startKey; key -= 1) {
-      const year = Math.floor((key - 1) / 12);
-      const month = ((key - 1) % 12) + 1;
-      options.push(`${year}-${String(month).padStart(2, "0")}`);
-    }
-    return options;
-  }, []);
+  const monthOptions = useMemo(() => buildMonthOptions(), []);
 
   async function loadUsers() {
     try {
@@ -151,9 +137,9 @@ export default function AdminAttendance() {
           </select>
           <button onClick={handleFilter}>Lọc</button>
           <select value={exportMonth} onChange={(e) => setExportMonth(e.target.value)}>
-            {exportMonthOptions.map((month) => (
-              <option key={month} value={month}>
-                {`Tháng ${month.slice(5, 7)}/${month.slice(0, 4)}`}
+            {monthOptions.map((m) => (
+              <option key={m} value={m}>
+                {`Tháng ${m.slice(5, 7)}/${m.slice(0, 4)}`}
               </option>
             ))}
           </select>
@@ -176,19 +162,46 @@ export default function AdminAttendance() {
               <th scope="col">Chức vụ</th>
               <th scope="col">Lên ca</th>
               <th scope="col">Xuống ca</th>
+              <th scope="col">Trạng thái</th>
               <th scope="col">Nghỉ</th>
+              <th scope="col">Cảnh báo</th>
+              <th scope="col"></th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.id}>
-                <td>{row.workDate}</td>
-                <td>{row.user.username}</td>
-                <td>{row.user.department || "-"}</td>
-                <td>{row.checkInAt ? fmtDateTime(row.checkInAt) : "-"}</td>
-                <td>{row.checkOutAt ? fmtDateTime(row.checkOutAt) : "-"}</td>
-                <td>{row.isOffDay ? (row.isDeducted ? "Off không phép" : "Off phép") : "-"}</td>
-              </tr>
+              editingId === row.id ? (
+                <tr key={row.id}>
+                  <td>{row.workDate}</td>
+                  <td>{row.user.username}</td>
+                  <td>{row.user.department || "-"}</td>
+                  <td><input type="datetime-local" value={checkInAt} onChange={(e) => setCheckInAt(e.target.value)} style={{ fontSize: 12, width: 170 }} /></td>
+                  <td><input type="datetime-local" value={checkOutAt} onChange={(e) => setCheckOutAt(e.target.value)} style={{ fontSize: 12, width: 170 }} /></td>
+                  <td>{attendanceStatusLabel(row.status)}</td>
+                  <td>{row.isOffDay ? (row.isDeducted ? "Không phép" : "Có phép") : "-"}</td>
+                  <td>{parseWarnings(row.warningFlagsJson).join(", ") || "-"}</td>
+                  <td>
+                    <div className="row" style={{ gap: 4 }}>
+                      <button style={{ fontSize: 12, padding: "2px 8px" }} disabled={loading} onClick={save}>Lưu</button>
+                      <button className="secondary" style={{ fontSize: 12, padding: "2px 8px" }} onClick={() => setEditingId("")}>Hủy</button>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                <tr key={row.id}>
+                  <td>{row.workDate}</td>
+                  <td>{row.user.username}</td>
+                  <td>{row.user.department || "-"}</td>
+                  <td>{row.checkInAt ? fmtDateTime(row.checkInAt) : "-"}</td>
+                  <td>{row.checkOutAt ? fmtDateTime(row.checkOutAt) : "-"}</td>
+                  <td>{attendanceStatusLabel(row.status)}</td>
+                  <td>{row.isOffDay ? (row.isDeducted ? "Không phép" : "Có phép") : "-"}</td>
+                  <td>{parseWarnings(row.warningFlagsJson).join(", ") || "-"}</td>
+                  <td>
+                    <button className="secondary" style={{ fontSize: 12, padding: "2px 8px" }} onClick={() => startEdit(row)}>Sửa</button>
+                  </td>
+                </tr>
+              )
             ))}
             {rows.length === 0 && <EmptyState />}
           </tbody>

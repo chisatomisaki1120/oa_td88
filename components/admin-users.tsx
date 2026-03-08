@@ -4,7 +4,7 @@ import { FormEvent, Fragment, useEffect, useState } from "react";
 import type { Role } from "@prisma/client";
 import { apiJson } from "@/lib/client-api";
 import { roleLabel, workModeLabel, attendanceStatusLabel, warningLabel, parseWarnings } from "@/lib/display-labels";
-import { fmtDateTime } from "@/lib/time";
+import { fmtDateTime, buildMonthOptions, currentMonthVn } from "@/lib/time";
 import { ErrorMessage, SuccessMessage, EmptyState } from "@/components/ui-feedback";
 
 const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
@@ -208,9 +208,7 @@ export default function AdminUsers({ actorRole }: Props) {
   });
 
   const [detailUserId, setDetailUserId] = useState("");
-  const [detailMonth, setDetailMonth] = useState(
-    new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).slice(0, 7),
-  );
+  const [detailMonth, setDetailMonth] = useState(currentMonthVn);
   const [detailRows, setDetailRows] = useState<AttendanceRow[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
 
@@ -227,23 +225,7 @@ export default function AdminUsers({ actorRole }: Props) {
     load();
   }, []);
 
-  const monthOptions = (() => {
-    const startYear = 2026;
-    const startMonth = 3;
-    const [currentYear, currentMonth] = new Date()
-      .toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" })
-      .split("-")
-      .map(Number);
-    const currentKey = currentYear * 12 + currentMonth;
-    const startKey = startYear * 12 + startMonth;
-    const options: string[] = [];
-    for (let key = currentKey; key >= startKey; key -= 1) {
-      const year = Math.floor((key - 1) / 12);
-      const month = ((key - 1) % 12) + 1;
-      options.push(`${year}-${String(month).padStart(2, "0")}`);
-    }
-    return options;
-  })();
+  const monthOptions = buildMonthOptions();
 
   async function loadDetail(userId: string, month: string) {
     setDetailLoading(true);
@@ -363,59 +345,41 @@ export default function AdminUsers({ actorRole }: Props) {
     <>
       <div className="card">
         <h3 style={{ marginTop: 0 }}>Tạo tài khoản</h3>
-        <form onSubmit={createUser} className="row">
-          <input placeholder="Tên đăng nhập" value={form.username} onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))} required />
-          <input placeholder="Mật khẩu" type="password" value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} required />
-          <input placeholder="Họ và tên" value={form.fullName} onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))} required />
-          <input placeholder="Chức vụ" value={form.department} onChange={(e) => setForm((f) => ({ ...f, department: e.target.value }))} />
-          <select value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}>
-            <option value="EMPLOYEE">Nhân viên</option>
-            <option value="ADMIN">Quản trị viên</option>
-            {canAssignSuperAdmin && <option value="SUPER_ADMIN">Siêu quản trị</option>}
-          </select>
-          <select value={form.workStartTime} onChange={(e) => setForm((f) => ({ ...f, workStartTime: e.target.value }))}>
-            {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
-          <select value={form.workEndTime} onChange={(e) => setForm((f) => ({ ...f, workEndTime: e.target.value }))}>
-            {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
-          <select value={form.workMode} onChange={(e) => setForm((f) => ({ ...f, workMode: e.target.value as "ONLINE" | "OFFLINE" }))}>
-            <option value="OFFLINE">Offline</option>
-            <option value="ONLINE">Online</option>
-          </select>
-          <input
-            type="number"
-            placeholder="Phút trễ cho phép"
-            value={form.lateGraceMinutes}
-            onChange={(e) => setForm((f) => ({ ...f, lateGraceMinutes: Number(e.target.value) }))}
-            style={{ width: 90 }}
-          />
-          <input
-            type="number"
-            placeholder="Phút về sớm cho phép"
-            value={form.earlyLeaveGraceMinutes}
-            onChange={(e) => setForm((f) => ({ ...f, earlyLeaveGraceMinutes: Number(e.target.value) }))}
-            style={{ width: 90 }}
-          />
-          <input
-            type="number"
-            min={0}
-            max={31}
-            placeholder="Nghỉ/tháng"
-            value={form.allowedOffDaysPerMonth}
-            onChange={(e) => setForm((f) => ({ ...f, allowedOffDaysPerMonth: Number(e.target.value) }))}
-            style={{ width: 100 }}
-          />
-          <button type="submit" disabled={loading}>{loading ? "Đang tạo..." : "Tạo"}</button>
+        <form onSubmit={createUser}>
+          <div className="row" style={{ marginBottom: 8 }}>
+            <input placeholder="Tên đăng nhập" value={form.username} onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))} required />
+            <input placeholder="Mật khẩu" type="password" value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} required />
+            <input placeholder="Họ và tên" value={form.fullName} onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))} required />
+            <input placeholder="Chức vụ" value={form.department} onChange={(e) => setForm((f) => ({ ...f, department: e.target.value }))} />
+          </div>
+          <div className="row" style={{ marginBottom: 8 }}>
+            <select value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}>
+              <option value="EMPLOYEE">Nhân viên</option>
+              <option value="ADMIN">Quản trị viên</option>
+              {canAssignSuperAdmin && <option value="SUPER_ADMIN">Siêu quản trị</option>}
+            </select>
+            <select value={form.workMode} onChange={(e) => setForm((f) => ({ ...f, workMode: e.target.value as "ONLINE" | "OFFLINE" }))}>
+              <option value="OFFLINE">Offline</option>
+              <option value="ONLINE">Online</option>
+            </select>
+            <select value={form.workStartTime} onChange={(e) => setForm((f) => ({ ...f, workStartTime: e.target.value }))} title="Giờ bắt đầu">
+              {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <select value={form.workEndTime} onChange={(e) => setForm((f) => ({ ...f, workEndTime: e.target.value }))} title="Giờ kết thúc">
+              {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <input type="number" placeholder="Trễ (phút)" value={form.lateGraceMinutes} onChange={(e) => setForm((f) => ({ ...f, lateGraceMinutes: Number(e.target.value) }))} style={{ width: 80 }} title="Phút trễ cho phép" />
+            <input type="number" placeholder="Sớm (phút)" value={form.earlyLeaveGraceMinutes} onChange={(e) => setForm((f) => ({ ...f, earlyLeaveGraceMinutes: Number(e.target.value) }))} style={{ width: 80 }} title="Phút về sớm cho phép" />
+            <input type="number" min={0} max={31} placeholder="Off/tháng" value={form.allowedOffDaysPerMonth} onChange={(e) => setForm((f) => ({ ...f, allowedOffDaysPerMonth: Number(e.target.value) }))} style={{ width: 80 }} title="Số ngày off/tháng" />
+            <button type="submit" disabled={loading}>{loading ? "Đang tạo..." : "Tạo"}</button>
+          </div>
         </form>
         {error && <ErrorMessage error={error} />}
         {message && <SuccessMessage message={message} />}
       </div>
 
       <div className="card">
-        <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-          <h3 style={{ marginTop: 0 }}>Danh sách tài khoản</h3>
-        </div>
+        <h3 style={{ marginTop: 0 }}>Danh sách tài khoản</h3>
         <div className="admin-users-table-wrap">
           <table className="admin-users-table">
           <thead>

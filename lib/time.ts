@@ -104,3 +104,33 @@ export function fmtMinutesToHours(minutes: number): string {
   const m = minutes % 60;
   return `${h}h${m > 0 ? m + "p" : ""}`;
 }
+
+// ── Month option helpers (client-side UI selectors) ──
+
+const SYSTEM_START_YEAR = 2026;
+const SYSTEM_START_MONTH = 3;
+
+/** Build descending list of "YYYY-MM" strings from current month back to system start */
+export function buildMonthOptions(): string[] {
+  const now = new Date().toLocaleDateString("en-CA", { timeZone: VN_TIMEZONE });
+  const [cy, cm] = now.split("-").map(Number);
+  const currentKey = cy * 12 + cm;
+  const startKey = SYSTEM_START_YEAR * 12 + SYSTEM_START_MONTH;
+  const opts: string[] = [];
+  for (let k = currentKey; k >= startKey; k--) {
+    const y = Math.floor((k - 1) / 12);
+    const m = ((k - 1) % 12) + 1;
+    opts.push(`${y}-${String(m).padStart(2, "0")}`);
+  }
+  return opts;
+}
+
+/** Get current month string "YYYY-MM" in VN timezone */
+export function currentMonthVn(): string {
+  return new Date().toLocaleDateString("en-CA", { timeZone: VN_TIMEZONE }).slice(0, 7);
+}
+
+/** Get current date string "YYYY-MM-DD" in VN timezone */
+export function currentDateVn(): string {
+  return new Date().toLocaleDateString("en-CA", { timeZone: VN_TIMEZONE });
+}

@@ -94,21 +94,28 @@ export default function AccountProfile() {
     return <div className="card">Đang tải...</div>;
   }
 
+  const isEmployee = profile.role === "EMPLOYEE";
+
   return (
     <>
     <div className="card">
       <h3 style={{ marginTop: 0 }}>Tài khoản của tôi</h3>
       <form onSubmit={saveProfile}>
         <div className="row" style={{ marginBottom: 10 }}>
-          <input value={profile.username} disabled />
-          <input value={roleLabel(profile.role)} disabled />
-          <select
-            value={profile.workMode}
-            onChange={(e) => setProfile((p) => (p ? { ...p, workMode: e.target.value as "ONLINE" | "OFFLINE" } : p))}
-          >
-            <option value="OFFLINE">Offline</option>
-            <option value="ONLINE">Online</option>
-          </select>
+          <input value={profile.username} disabled title="Tên đăng nhập" />
+          <input value={roleLabel(profile.role)} disabled title="Vai trò" />
+          {isEmployee ? (
+            <input value={profile.workMode} disabled title="Hình thức làm việc" />
+          ) : (
+            <select
+              value={profile.workMode}
+              onChange={(e) => setProfile((p) => (p ? { ...p, workMode: e.target.value as "ONLINE" | "OFFLINE" } : p))}
+              title="Hình thức làm việc"
+            >
+              <option value="OFFLINE">Offline</option>
+              <option value="ONLINE">Online</option>
+            </select>
+          )}
         </div>
         <div className="row" style={{ marginBottom: 10 }}>
           <input
@@ -145,32 +152,45 @@ export default function AccountProfile() {
             style={{ width: "100%" }}
           />
         </div>
-        <div className="row" style={{ marginBottom: 10 }}>
-          <input
-            type="time"
-            value={profile.workStartTime ?? ""}
-            onChange={(e) => setProfile((p) => (p ? { ...p, workStartTime: e.target.value } : p))}
-          />
-          <input
-            type="time"
-            value={profile.workEndTime ?? ""}
-            onChange={(e) => setProfile((p) => (p ? { ...p, workEndTime: e.target.value } : p))}
-          />
-          <input
-            type="number"
-            value={profile.lateGraceMinutes}
-            onChange={(e) => setProfile((p) => (p ? { ...p, lateGraceMinutes: Number(e.target.value) } : p))}
-            style={{ width: 90 }}
-            placeholder="Phút trễ cho phép"
-          />
-          <input
-            type="number"
-            value={profile.earlyLeaveGraceMinutes}
-            onChange={(e) => setProfile((p) => (p ? { ...p, earlyLeaveGraceMinutes: Number(e.target.value) } : p))}
-            style={{ width: 90 }}
-            placeholder="Phút về sớm cho phép"
-          />
-        </div>
+
+        {isEmployee ? (
+          <div className="row" style={{ marginBottom: 10, gap: 16 }}>
+            <span className="small">Giờ làm: <strong>{profile.workStartTime ?? "-"} – {profile.workEndTime ?? "-"}</strong></span>
+            <span className="small">Trễ cho phép: <strong>{profile.lateGraceMinutes} phút</strong></span>
+            <span className="small">Về sớm cho phép: <strong>{profile.earlyLeaveGraceMinutes} phút</strong></span>
+          </div>
+        ) : (
+          <div className="row" style={{ marginBottom: 10 }}>
+            <input
+              type="time"
+              value={profile.workStartTime ?? ""}
+              onChange={(e) => setProfile((p) => (p ? { ...p, workStartTime: e.target.value } : p))}
+              title="Giờ bắt đầu"
+            />
+            <input
+              type="time"
+              value={profile.workEndTime ?? ""}
+              onChange={(e) => setProfile((p) => (p ? { ...p, workEndTime: e.target.value } : p))}
+              title="Giờ kết thúc"
+            />
+            <input
+              type="number"
+              value={profile.lateGraceMinutes}
+              onChange={(e) => setProfile((p) => (p ? { ...p, lateGraceMinutes: Number(e.target.value) } : p))}
+              style={{ width: 90 }}
+              placeholder="Phút trễ"
+              title="Phút trễ cho phép"
+            />
+            <input
+              type="number"
+              value={profile.earlyLeaveGraceMinutes}
+              onChange={(e) => setProfile((p) => (p ? { ...p, earlyLeaveGraceMinutes: Number(e.target.value) } : p))}
+              style={{ width: 90 }}
+              placeholder="Phút về sớm"
+              title="Phút về sớm cho phép"
+            />
+          </div>
+        )}
         <div className="row" style={{ marginBottom: 10 }}>
           <input
             type="password"

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiJson } from "@/lib/client-api";
 import { attendanceStatusLabel, parseWarnings } from "@/lib/display-labels";
-import { fmtDateTime } from "@/lib/time";
+import { fmtDateTime, currentMonthVn } from "@/lib/time";
 import { ErrorMessage, EmptyState } from "@/components/ui-feedback";
 
 type Day = {
@@ -17,7 +17,7 @@ type Day = {
 };
 
 export default function EmployeeHistory() {
-  const [month, setMonth] = useState(new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).slice(0, 7));
+  const [month, setMonth] = useState(currentMonthVn);
   const [rows, setRows] = useState<Day[]>([]);
   const [error, setError] = useState("");
 
