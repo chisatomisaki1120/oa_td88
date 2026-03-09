@@ -1,6 +1,6 @@
 import { AttendanceDay, AttendanceStatus, BreakSession, BreakType, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { minutesBetween, parseHHMM, shiftWorkDate, vnDateString, vnMinuteOfDay, parseWorkDateToUtc } from "@/lib/time";
+import { minutesBetween, parseHHMM, shiftWorkDate, vnDateString, vnMinuteOfDay } from "@/lib/time";
 
 export type BreakPolicy = {
   wcSmoke: { maxCount: number; maxMinutesEach: number };
