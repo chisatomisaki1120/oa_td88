@@ -1,6 +1,6 @@
 import { AttendanceDay, AttendanceStatus, BreakSession, BreakType, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { minutesBetween, parseHHMM, shiftWorkDate, vnDateString, vnMinuteOfDay } from "@/lib/time";
+import { minutesBetween, parseHHMM, shiftWorkDate, vnDateString, vnMinuteOfDay, parseWorkDateToUtc } from "@/lib/time";
 
 export type BreakPolicy = {
   wcSmoke: { maxCount: number; maxMinutesEach: number };
@@ -249,6 +249,20 @@ export async function getOrCreateTodayAttendance(tx: Prisma.TransactionClient, u
   return getOrCreateAttendanceByWorkDate(tx, userId, vnDateString());
 }
 
+/**
+ * Compute the actual DateTime when a shift ends for a given workDate.
+ * For normal shifts (e.g. 08:00–17:00): endTime is on the same calendar day.
+ * For overnight shifts (e.g. 22:00–06:00): endTime is on the next calendar day.
+ */
+function computeShiftEndDateTime(workDate: string, schedule: WorkSchedule): Date {
+  const endMinutes = parseHHMM(schedule.endTime);
+  const startMinutes = parseHHMM(schedule.startTime);
+  const overnight = endMinutes <= startMinutes;
+
+  const baseDate = parseWorkDateToUtc(overnight ? shiftWorkDate(workDate, 1) : workDate);
+  return new Date(baseDate.getTime() + endMinutes * 60000);
+}
+
 export async function getOrCreateCurrentShiftAttendance(tx: Prisma.TransactionClient, userId: string, now: Date = new Date()): Promise<AttendanceDay> {
   const today = vnDateString(now);
   const yesterday = shiftWorkDate(today, -1);
@@ -271,8 +285,33 @@ export async function getOrCreateCurrentShiftAttendance(tx: Prisma.TransactionCl
     // (e.g. still within the same shift, or same-day re-check)
     if (openAttendance.workDate === resolvedWorkDate) return openAttendance;
 
-    // Otherwise the shift has ended — auto-close the stale attendance as INCOMPLETE
-    await recalculateAttendanceDay(tx, openAttendance, schedule);
+    // Shift has ended — auto-close with the shift's scheduled end time
+    const prevSchedule = await getActiveShiftForUser(userId, openAttendance.checkInAt!, tx);
+    const autoCheckOutAt = prevSchedule
+      ? computeShiftEndDateTime(openAttendance.workDate, prevSchedule)
+      : openAttendance.checkInAt!; // fallback: use checkInAt if no schedule
+
+    // Close any open break sessions at the auto-checkout time
+    await tx.breakSession.updateMany({
+      where: { attendanceDayId: openAttendance.id, endAt: null },
+      data: { endAt: autoCheckOutAt, durationMinutesComputed: 0 },
+    });
+    // Recompute break durations for auto-closed breaks
+    const openBreaks = await tx.breakSession.findMany({
+      where: { attendanceDayId: openAttendance.id, durationMinutesComputed: 0, endAt: { not: null } },
+    });
+    for (const b of openBreaks) {
+      await tx.breakSession.update({
+        where: { id: b.id },
+        data: { durationMinutesComputed: minutesBetween(b.startAt, b.endAt!) },
+      });
+    }
+
+    const updated = await tx.attendanceDay.update({
+      where: { id: openAttendance.id },
+      data: { checkOutAt: autoCheckOutAt, updatedBy: userId },
+    });
+    await recalculateAttendanceDay(tx, updated, prevSchedule);
   }
 
   return getOrCreateAttendanceByWorkDate(tx, userId, resolvedWorkDate);
