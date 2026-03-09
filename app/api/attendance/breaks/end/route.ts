@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { fail, ok } from "@/lib/api";
 import { getSessionUserFromRequest } from "@/lib/auth";
-import { assertMonthUnlocked, getActiveShiftForUser, getOrCreateCurrentShiftAttendance, recalculateAttendanceDay } from "@/lib/attendance";
+import { assertMonthUnlocked, getActiveShiftForUser, getOrCreateCurrentShiftAttendance, getScheduleReferenceForAttendance, recalculateAttendanceDay } from "@/lib/attendance";
 import { prisma } from "@/lib/prisma";
 import { validateCsrf } from "@/lib/csrf";
 import { minutesBetween } from "@/lib/time";
@@ -34,16 +34,21 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const shift = await getActiveShiftForUser(user.id, new Date(), tx);
-    return recalculateAttendanceDay(tx, today, shift);
+    const updatedAttendance = await tx.attendanceDay.findUnique({ where: { id: today.id } });
+    if (!updatedAttendance) throw new Error("ATTENDANCE_NOT_FOUND");
+
+    const shift = await getActiveShiftForUser(user.id, getScheduleReferenceForAttendance(updatedAttendance), tx);
+    return recalculateAttendanceDay(tx, updatedAttendance, shift);
   }).catch((e) => {
-    if (e instanceof Error) return e.message as "MONTH_LOCKED" | "NO_CHECKIN" | "NO_OPEN_BREAK";
+    if (e instanceof Error) return e.message as "MONTH_LOCKED" | "NO_CHECKIN" | "NO_OPEN_BREAK" | "ATTENDANCE_NOT_FOUND" | "PREVIOUS_SHIFT_NOT_CHECKED_OUT";
     throw e;
   });
 
   if (result === "MONTH_LOCKED") return fail("Tháng này đã khóa công", 409);
   if (result === "NO_CHECKIN") return fail("Bạn chưa check-in", 409);
   if (result === "NO_OPEN_BREAK") return fail("Không có phiên nghỉ đang mở", 409);
+  if (result === "ATTENDANCE_NOT_FOUND") return fail("Không tìm thấy bản ghi công", 404);
+  if (result === "PREVIOUS_SHIFT_NOT_CHECKED_OUT") return fail("Bạn chưa xuống ca của ngày làm việc trước đó. Vui lòng liên hệ quản lý để xử lý trước khi thao tác tiếp.", 409);
 
   return ok(result);
 }

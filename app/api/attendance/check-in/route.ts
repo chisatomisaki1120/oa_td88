@@ -41,11 +41,13 @@ export async function POST(request: NextRequest) {
       if (e instanceof Error && e.message === "MONTH_LOCKED") return "MONTH_LOCKED" as const;
       if (e instanceof Error && e.message === "ALREADY_CHECKED_IN") return null;
       if (e instanceof Error && e.message === "OFF_DAY") return "OFF_DAY" as const;
+      if (e instanceof Error && e.message === "PREVIOUS_SHIFT_NOT_CHECKED_OUT") return "PREVIOUS_SHIFT_NOT_CHECKED_OUT" as const;
       throw e;
     });
 
   if (result === "MONTH_LOCKED") return fail("Tháng này đã khóa công", 409);
   if (!result) return fail("Bạn đã check-in ca hiện tại", 409);
   if (result === "OFF_DAY") return fail("Bạn đã báo off cho hôm nay", 409);
+  if (result === "PREVIOUS_SHIFT_NOT_CHECKED_OUT") return fail("Bạn chưa xuống ca của ngày làm việc trước đó. Vui lòng liên hệ quản lý để xử lý trước khi lên ca mới.", 409);
   return ok(result);
 }

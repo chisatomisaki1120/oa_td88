@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { fail, ok } from "@/lib/api";
 import { getSessionUserFromRequest } from "@/lib/auth";
-import { assertMonthUnlocked, getActiveShiftForUser, getOrCreateCurrentShiftAttendance, recalculateAttendanceDay } from "@/lib/attendance";
+import { assertMonthUnlocked, getActiveShiftForUser, getOrCreateCurrentShiftAttendance, getScheduleReferenceForAttendance, recalculateAttendanceDay } from "@/lib/attendance";
 import { prisma } from "@/lib/prisma";
 import { validateCsrf } from "@/lib/csrf";
 import { consumeApiRateLimit } from "@/lib/rate-limit";
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
       data: { checkOutAt: new Date(), updatedBy: user.id },
     });
 
-    const shift = await getActiveShiftForUser(user.id, new Date(), tx);
+    const shift = await getActiveShiftForUser(user.id, getScheduleReferenceForAttendance(updated), tx);
     return recalculateAttendanceDay(tx, updated, shift);
   }).catch((e) => {
     if (!(e instanceof Error)) throw e;
@@ -40,6 +40,7 @@ export async function POST(request: NextRequest) {
     if (e.message === "NO_CHECKIN") return "NO_CHECKIN" as const;
     if (e.message === "ALREADY_CHECKOUT") return "ALREADY_CHECKOUT" as const;
     if (e.message === "BREAK_OPEN") return "BREAK_OPEN" as const;
+    if (e.message === "PREVIOUS_SHIFT_NOT_CHECKED_OUT") return "PREVIOUS_SHIFT_NOT_CHECKED_OUT" as const;
     throw e;
   });
 
@@ -47,6 +48,7 @@ export async function POST(request: NextRequest) {
   if (result === "NO_CHECKIN") return fail("Bạn chưa check-in", 409);
   if (result === "ALREADY_CHECKOUT") return fail("Bạn đã check-out", 409);
   if (result === "BREAK_OPEN") return fail("Bạn đang trong phiên nghỉ, vui lòng kết thúc nghỉ trước", 409);
+  if (result === "PREVIOUS_SHIFT_NOT_CHECKED_OUT") return fail("Bạn chưa xuống ca của ngày làm việc trước đó. Vui lòng liên hệ quản lý để xử lý trước khi thao tác tiếp.", 409);
 
   return ok(result);
 }

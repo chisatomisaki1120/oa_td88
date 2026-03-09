@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
   const month = searchParams.get("month");
   const department = searchParams.get("department");
   const userId = searchParams.get("userId");
+  const openOnly = searchParams.get("openOnly") === "1";
   const limitRaw = Number(searchParams.get("limit") ?? String(ATTENDANCE_DEFAULT_LIMIT));
   const take = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.trunc(limitRaw), 1), ATTENDANCE_MAX_LIMIT) : ATTENDANCE_DEFAULT_LIMIT;
 
@@ -26,6 +27,10 @@ export async function GET(request: NextRequest) {
   if (date) where.workDate = date;
   else if (month) where.workDate = { startsWith: month };
   if (userId) where.userId = userId;
+  if (openOnly) {
+    where.checkInAt = { not: null };
+    where.checkOutAt = null;
+  }
 
   const [items, total] = await Promise.all([
     prisma.attendanceDay.findMany({

@@ -182,6 +182,13 @@ function withEarlyLeaveWarning(
   return status;
 }
 
+export function getScheduleReferenceForAttendance(attendanceDay: Pick<AttendanceDay, "workDate" | "checkInAt">): Date {
+  if (attendanceDay.checkInAt) return attendanceDay.checkInAt;
+  const noonUtc = parseWorkDateToUtc(attendanceDay.workDate);
+  noonUtc.setUTCHours(12, 0, 0, 0);
+  return noonUtc;
+}
+
 export async function recalculateAttendanceDay(
   tx: Prisma.TransactionClient,
   attendanceDay: AttendanceDay,
@@ -254,16 +261,11 @@ export async function getOrCreateTodayAttendance(tx: Prisma.TransactionClient, u
  * For normal shifts (e.g. 08:00–17:00): endTime is on the same calendar day.
  * For overnight shifts (e.g. 22:00–06:00): endTime is on the next calendar day.
  */
-function computeShiftEndDateTime(workDate: string, schedule: WorkSchedule): Date {
-  const endMinutes = parseHHMM(schedule.endTime);
-  const startMinutes = parseHHMM(schedule.startTime);
-  const overnight = endMinutes <= startMinutes;
-
-  const baseDate = parseWorkDateToUtc(overnight ? shiftWorkDate(workDate, 1) : workDate);
-  return new Date(baseDate.getTime() + endMinutes * 60000);
-}
-
-export async function getOrCreateCurrentShiftAttendance(tx: Prisma.TransactionClient, userId: string, now: Date = new Date()): Promise<AttendanceDay> {
+export async function getPendingPreviousOpenAttendance(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  now: Date = new Date(),
+): Promise<AttendanceDay | null> {
   const today = vnDateString(now);
   const yesterday = shiftWorkDate(today, -1);
 
@@ -280,39 +282,18 @@ export async function getOrCreateCurrentShiftAttendance(tx: Prisma.TransactionCl
     orderBy: { workDate: "desc" },
   });
 
-  if (openAttendance) {
-    // If the open attendance is from the current resolved work date, return it normally
-    // (e.g. still within the same shift, or same-day re-check)
-    if (openAttendance.workDate === resolvedWorkDate) return openAttendance;
+  if (!openAttendance) return null;
+  if (openAttendance.workDate === resolvedWorkDate) return null;
+  return openAttendance;
+}
 
-    // Shift has ended — auto-close with the shift's scheduled end time
-    const prevSchedule = await getActiveShiftForUser(userId, openAttendance.checkInAt!, tx);
-    const autoCheckOutAt = prevSchedule
-      ? computeShiftEndDateTime(openAttendance.workDate, prevSchedule)
-      : openAttendance.checkInAt!; // fallback: use checkInAt if no schedule
-
-    // Close any open break sessions at the auto-checkout time
-    await tx.breakSession.updateMany({
-      where: { attendanceDayId: openAttendance.id, endAt: null },
-      data: { endAt: autoCheckOutAt, durationMinutesComputed: 0 },
-    });
-    // Recompute break durations for auto-closed breaks
-    const openBreaks = await tx.breakSession.findMany({
-      where: { attendanceDayId: openAttendance.id, durationMinutesComputed: 0, endAt: { not: null } },
-    });
-    for (const b of openBreaks) {
-      await tx.breakSession.update({
-        where: { id: b.id },
-        data: { durationMinutesComputed: minutesBetween(b.startAt, b.endAt!) },
-      });
-    }
-
-    const updated = await tx.attendanceDay.update({
-      where: { id: openAttendance.id },
-      data: { checkOutAt: autoCheckOutAt, updatedBy: userId },
-    });
-    await recalculateAttendanceDay(tx, updated, prevSchedule);
+export async function getOrCreateCurrentShiftAttendance(tx: Prisma.TransactionClient, userId: string, now: Date = new Date()): Promise<AttendanceDay> {
+  const pendingPrevious = await getPendingPreviousOpenAttendance(tx, userId, now);
+  if (pendingPrevious) {
+    throw new Error("PREVIOUS_SHIFT_NOT_CHECKED_OUT");
   }
 
+  const schedule = await getActiveShiftForUser(userId, now, tx);
+  const resolvedWorkDate = resolveWorkDateForShiftMoment(schedule, now);
   return getOrCreateAttendanceByWorkDate(tx, userId, resolvedWorkDate);
 }

@@ -40,8 +40,8 @@ type UserOption = {
 };
 
 export default function AdminAttendance() {
-  const [date, setDate] = useState(currentDateVn);
-  const [exportMonth, setExportMonth] = useState(currentMonthVn);
+  const [date, setDate] = useState(currentDateVn());
+  const [exportMonth, setExportMonth] = useState(currentMonthVn());
   const [rows, setRows] = useState<Row[]>([]);
   const [error, setError] = useState("");
   const [editingId, setEditingId] = useState("");
@@ -54,6 +54,7 @@ export default function AdminAttendance() {
   const [total, setTotal] = useState(0);
   const [filterUserId, setFilterUserId] = useState("");
   const [users, setUsers] = useState<UserOption[]>([]);
+  const [stuckRows, setStuckRows] = useState<Row[]>([]);
 
   const monthOptions = useMemo(() => buildMonthOptions(), []);
 
@@ -71,11 +72,16 @@ export default function AdminAttendance() {
     try {
       const params = new URLSearchParams({ date, page: String(targetPage) });
       if (filterUserId) params.set("userId", filterUserId);
-      const data = await apiJson<PaginatedResult>(`/api/admin/attendance?${params}`);
+      const [data, stuckData] = await Promise.all([
+        apiJson<PaginatedResult>(`/api/admin/attendance?${params}`),
+        apiJson<PaginatedResult>(`/api/admin/attendance?openOnly=1&limit=20`),
+      ]);
       setRows(data.items);
       setTotalPages(data.totalPages);
       setTotal(data.total);
       setPage(data.page);
+      const today = currentDateVn();
+      setStuckRows(stuckData.items.filter((item) => item.workDate < today));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Không tải được dữ liệu");
     }
@@ -114,6 +120,13 @@ export default function AdminAttendance() {
     setEditingId(row.id);
     setCheckInAt(row.checkInAt ? new Date(row.checkInAt).toISOString().slice(0, 16) : "");
     setCheckOutAt(row.checkOutAt ? new Date(row.checkOutAt).toISOString().slice(0, 16) : "");
+    setMessage("");
+    setError("");
+  }
+
+  function startResolveStuckShift(row: Row) {
+    startEdit(row);
+    setMessage(`Đang xử lý ca treo của ${row.user.fullName} ngày ${row.workDate}. Vui lòng nhập giờ xuống ca rồi bấm Lưu.`);
   }
 
   function handleFilter() {
@@ -151,6 +164,42 @@ export default function AdminAttendance() {
         </div>
         {error && <ErrorMessage error={error} />}
         {message && <SuccessMessage message={message} />}
+      </div>
+
+      <div className="card">
+        <h3 style={{ marginTop: 0 }}>Ca treo cần xử lý</h3>
+        {stuckRows.length === 0 ? (
+          <p style={{ marginBottom: 0, color: "#047857" }}>Không có ca treo từ ngày làm việc trước.</p>
+        ) : (
+          <table style={{ marginBottom: 16 }}>
+            <thead>
+              <tr>
+                <th scope="col">Ngày</th>
+                <th scope="col">Nhân viên</th>
+                <th scope="col">Lên ca</th>
+                <th scope="col">Xuống ca</th>
+                <th scope="col">Trạng thái</th>
+                <th scope="col"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {stuckRows.map((row) => (
+                <tr key={`stuck-${row.id}`}>
+                  <td>{row.workDate}</td>
+                  <td>{row.user.fullName} ({row.user.username})</td>
+                  <td>{row.checkInAt ? fmtDateTime(row.checkInAt) : "-"}</td>
+                  <td>{row.checkOutAt ? fmtDateTime(row.checkOutAt) : <strong style={{ color: "#b91c1c" }}>Chưa xuống ca</strong>}</td>
+                  <td>{attendanceStatusLabel(row.status)}</td>
+                  <td>
+                    <button className="secondary" style={{ fontSize: 12, padding: "2px 8px" }} onClick={() => startResolveStuckShift(row)}>
+                      Xử lý ca treo
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
       <div className="card">

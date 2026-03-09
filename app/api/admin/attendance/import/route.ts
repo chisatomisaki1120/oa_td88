@@ -6,6 +6,7 @@ import { validateCsrf } from "@/lib/csrf";
 import { prisma } from "@/lib/prisma";
 import { requireRoleRequest } from "@/lib/rbac";
 import { isValidDate } from "@/lib/time";
+import { getActiveShiftForUser, getScheduleReferenceForAttendance, recalculateAttendanceDay } from "@/lib/attendance";
 
 type ImportRow = {
   row: number;
@@ -101,7 +102,8 @@ export async function POST(request: NextRequest) {
   let imported = 0;
   let skipped = 0;
 
-  for (let i = 0; i < rawRows.length; i++) {
+  await prisma.$transaction(async (tx) => {
+    for (let i = 0; i < rawRows.length; i++) {
     const raw = rawRows[i];
     const username = String(raw[usernameCol] ?? "").trim();
     const workDate = parseExcelDate(raw[dateCol]);
@@ -127,24 +129,37 @@ export async function POST(request: NextRequest) {
       checkOutAt.setDate(checkOutAt.getDate() + 1);
     }
 
-    let workedMinutes: number | null = null;
-    if (checkInAt && checkOutAt) {
-      workedMinutes = Math.max(0, Math.round((checkOutAt.getTime() - checkInAt.getTime()) / 60000));
-    }
-
     let status: AttendanceStatus = AttendanceStatus.INCOMPLETE;
-    if (checkInAt && checkOutAt) status = AttendanceStatus.PRESENT;
-    else if (!checkInAt && !checkOutAt) status = AttendanceStatus.ABSENT;
+    if (!checkInAt && !checkOutAt) status = AttendanceStatus.ABSENT;
 
-    await prisma.attendanceDay.upsert({
+    const attendance = await tx.attendanceDay.upsert({
       where: { userId_workDate: { userId, workDate } },
-      create: { userId, workDate, checkInAt, checkOutAt, status, workedMinutes },
-      update: { checkInAt, checkOutAt, status, workedMinutes },
+      create: {
+        userId,
+        workDate,
+        checkInAt,
+        checkOutAt,
+        status,
+        workedMinutes: null,
+        updatedBy: user.id,
+        createdBy: user.id,
+      },
+      update: {
+        checkInAt,
+        checkOutAt,
+        status,
+        workedMinutes: null,
+        updatedBy: user.id,
+      },
     });
+
+    const shift = await getActiveShiftForUser(userId, getScheduleReferenceForAttendance(attendance), tx);
+    await recalculateAttendanceDay(tx, attendance, shift);
 
     imported++;
     results.push(row);
   }
+  });
 
   await prisma.auditLog.create({
     data: {

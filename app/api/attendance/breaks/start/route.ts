@@ -49,6 +49,7 @@ export async function POST(request: NextRequest) {
   if (result === "NO_CHECKIN") return fail("Bạn chưa check-in", 409);
   if (result === "ALREADY_CHECKOUT") return fail("Bạn đã check-out", 409);
   if (result === "BREAK_OPEN") return fail("Bạn đã bắt đầu nghỉ trước đó", 409);
+  if (result === "PREVIOUS_SHIFT_NOT_CHECKED_OUT") return fail("Bạn chưa xuống ca của ngày làm việc trước đó. Vui lòng liên hệ quản lý để xử lý trước khi thao tác tiếp.", 409);
 
   return ok(result);
 }

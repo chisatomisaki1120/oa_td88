@@ -5,7 +5,7 @@ import { fail, ok } from "@/lib/api";
 import { validateCsrf } from "@/lib/csrf";
 import { prisma } from "@/lib/prisma";
 import { requireRoleRequest } from "@/lib/rbac";
-import { DEFAULT_BREAK_POLICY, type BreakPolicy } from "@/lib/attendance";
+import { DEFAULT_BREAK_POLICY } from "@/lib/attendance";
 import { TIME_REGEX } from "@/lib/constants";
 
 const breakPolicySchema = z.object({

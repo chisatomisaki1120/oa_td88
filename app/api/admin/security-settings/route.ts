@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const actor = await requireRoleRequest(request, [Role.ADMIN, Role.SUPER_ADMIN]);
+  const actor = await requireRoleRequest(request, [Role.SUPER_ADMIN]);
   if (!actor) return fail("Forbidden", 403);
   if (!validateCsrf(request)) return fail("Invalid CSRF token", 403);
 
