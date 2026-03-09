@@ -9,6 +9,15 @@
   --surface-hover: #f9fafb;
   --badge-bg: #e5e7eb;
   --badge-text: #1f2937;
+  --cell-strip: #d8ecfb;
+  --cell-today: #fefce8;
+  --panel-header-bg: #bfe0f8;
+  --strip-late: #ffc8d0;
+  --strip-off: #c6f3f1;
+  --strip-miss: #e0c9ff;
+  --strip-extra: #9cb5ff;
+  --strip-absent: #fca5a5;
+  --legend-text: #1f2937;
 }
 
 [data-theme="dark"] {
@@ -22,6 +31,15 @@
   --surface-hover: #253349;
   --badge-bg: #334155;
   --badge-text: #e2e8f0;
+  --cell-strip: #1e3a5f;
+  --cell-today: #422006;
+  --panel-header-bg: #1e3a5f;
+  --strip-late: #7f1d1d;
+  --strip-off: #134e4a;
+  --strip-miss: #4c1d95;
+  --strip-extra: #1e3a8a;
+  --strip-absent: #991b1b;
+  --legend-text: #e2e8f0;
 }
 
 * {
@@ -179,15 +197,15 @@ td {
 
 .employee-clock {
   border-radius: 4px;
-  border-color: #cfd8e3;
-  background: #f8fafc;
+  border-color: var(--border);
+  background: var(--surface);
   padding: 8px;
 }
 
 .employee-clock__top {
-  border: 1px solid #d6dde6;
-  background: #f4f4f4;
-  color: #374151;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
   font-weight: 600;
   padding: 10px 12px;
   margin-bottom: 8px;
@@ -200,8 +218,8 @@ td {
 }
 
 .employee-clock__calendar {
-  border: 1px solid #d6dde6;
-  background: #ffffff;
+  border: 1px solid var(--border);
+  background: var(--surface);
   padding: 8px;
 }
 
@@ -241,25 +259,46 @@ td {
 .employee-clock__cell {
   height: 84px;
   vertical-align: top;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border);
   padding: 0;
   cursor: pointer;
   position: relative;
-  background: #fff;
+  background: var(--surface);
 }
 
 .employee-clock__cell:hover {
-  background: #f8fbff;
+  background: var(--surface-hover);
 }
 
 .employee-clock__cell--empty {
-  background: #fbfdff;
+  background: var(--bg);
   cursor: default;
 }
 
 .employee-clock__cell-strip {
-  background: #d8ecfb;
+  background: var(--cell-strip);
   height: 12px;
+}
+
+.employee-clock__cell-strip.strip--late,
+.employee-clock__cell-strip.strip--early-leave {
+  background: var(--strip-late);
+}
+
+.employee-clock__cell-strip.strip--off {
+  background: var(--strip-off);
+}
+
+.employee-clock__cell-strip.strip--incomplete {
+  background: var(--strip-miss);
+}
+
+.employee-clock__cell-strip.strip--present {
+  background: var(--strip-extra);
+}
+
+.employee-clock__cell-strip.strip--absent {
+  background: var(--strip-absent);
 }
 
 .employee-clock__cell-day {
@@ -267,14 +306,14 @@ td {
   right: 6px;
   top: 2px;
   font-size: 12px;
-  color: #2f4a62;
+  color: var(--text);
   font-weight: 600;
 }
 
 .employee-clock__cell-content {
   padding: 14px 6px 4px;
   font-size: 11px;
-  color: #334155;
+  color: var(--muted);
 }
 
 .employee-clock__cell-content p {
@@ -283,7 +322,7 @@ td {
 
 .employee-clock__status {
   font-weight: 700;
-  color: #1e3a8a;
+  color: var(--primary);
 }
 
 .employee-clock__cell.is-selected {
@@ -292,7 +331,7 @@ td {
 }
 
 .employee-clock__cell.is-today {
-  background: #fefce8;
+  background: var(--cell-today);
 }
 
 .employee-clock__cell.is-off-selected {
@@ -300,21 +339,21 @@ td {
 }
 
 .employee-clock__side {
-  border: 1px solid #d6dde6;
-  background: #fff;
+  border: 1px solid var(--border);
+  background: var(--surface);
 }
 
 .employee-clock__panel-header {
-  background: #bfe0f8;
-  color: #1f3f5d;
+  background: var(--panel-header-bg);
+  color: var(--text);
   text-align: center;
   font-weight: 700;
   padding: 10px 8px;
-  border-bottom: 1px solid #d6dde6;
+  border-bottom: 1px solid var(--border);
 }
 
 .employee-clock__panel {
-  border-bottom: 1px solid #e5edf6;
+  border-bottom: 1px solid var(--border);
   padding: 10px;
 }
 
@@ -325,7 +364,7 @@ td {
 .employee-clock__panel h4 {
   margin: 0 0 10px;
   font-size: 14px;
-  color: #23384e;
+  color: var(--text);
 }
 
 .employee-clock__action-row {
@@ -388,7 +427,7 @@ td {
 
 .employee-clock__legend {
   margin-top: 8px;
-  border: 1px solid #d6dde6;
+  border: 1px solid var(--border);
   display: grid;
   grid-template-columns: repeat(6, 1fr);
 }
@@ -397,8 +436,9 @@ td {
   font-weight: 700;
   text-align: center;
   padding: 6px;
-  border-right: 1px solid #d6dde6;
+  border-right: 1px solid var(--border);
   font-size: 13px;
+  color: var(--legend-text);
 }
 
 .employee-clock__legend span:last-child {
@@ -406,35 +446,35 @@ td {
 }
 
 .employee-clock__legend .late {
-  background: #ffc8d0;
+  background: var(--strip-late);
 }
 
 .employee-clock__legend .leave {
-  background: #b9f6a5;
+  background: var(--strip-off);
 }
 
 .employee-clock__legend .miss {
-  background: #e0c9ff;
+  background: var(--strip-miss);
 }
 
 .employee-clock__legend .extra {
-  background: #9cb5ff;
+  background: var(--strip-extra);
 }
 
 .employee-clock__legend .off {
-  background: #c6f3f1;
+  background: var(--strip-off);
 }
 
 .employee-clock__legend .today {
-  background: #fff4b8;
+  background: var(--cell-today);
 }
 
 .employee-clock__help {
-  border: 1px solid #d6dde6;
+  border: 1px solid var(--border);
   border-top: none;
-  background: #fff;
+  background: var(--surface);
   padding: 8px;
-  color: #315476;
+  color: var(--muted);
   font-size: 12px;
 }
 

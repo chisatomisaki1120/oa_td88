@@ -242,7 +242,7 @@ export default function EmployeeToday() {
                           }
                         }}
                       >
-                        <div className="employee-clock__cell-strip" />
+                        <div className={`employee-clock__cell-strip${info ? " strip--" + info.status.toLowerCase().replace("_", "-") : ""}`} />
                         <div className="employee-clock__cell-day">{value}</div>
                         {info && (
                           <div className="employee-clock__cell-content">
@@ -258,8 +258,8 @@ export default function EmployeeToday() {
               ))}
             </tbody>
           </table>
-          {error && <p style={{ color: "#b91c1c", marginTop: 8 }}>{error}</p>}
-          {message && <p style={{ color: "#047857", marginTop: 8 }}>{message}</p>}
+          {error && <p style={{ color: "var(--danger)", marginTop: 8 }}>{error}</p>}
+          {message && <p style={{ color: "var(--primary)", marginTop: 8 }}>{message}</p>}
         </div>
 
         <aside className="employee-clock__side">
