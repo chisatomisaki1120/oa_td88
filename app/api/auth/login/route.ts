@@ -243,7 +243,6 @@ export async function POST(request: NextRequest) {
     if (recentConflict) {
       const sameIp = recentConflict.ipAddress === ip;
       const sameDevice = recentConflict.deviceKey === deviceKey;
-      const relatedUserIds = recentConflict.userId ? [recentConflict.userId] : [];
       await logFailedLoginAttempt({
         userId: user.id,
         usernameInput: parsed.data.username,

@@ -15,7 +15,7 @@ function resolveDbPath() {
 const SKIP_TABLES = new Set(["LoginAccessLog", "AuthSession", "AuditLog"]);
 
 export async function GET(request: NextRequest) {
-  const actor = await requireRoleRequest(request, [Role.ADMIN, Role.SUPER_ADMIN]);
+  const actor = await requireRoleRequest(request, [Role.SUPER_ADMIN]);
   if (!actor) return fail("Forbidden", 403);
 
   const dbPath = resolveDbPath();

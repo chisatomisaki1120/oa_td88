@@ -1,18 +1,15 @@
 import { NextRequest } from "next/server";
-import { AttendanceStatus, Role } from "@prisma/client";
+import { Role } from "@prisma/client";
 import { z } from "zod";
 import { fail, ok } from "@/lib/api";
 import { validateCsrf } from "@/lib/csrf";
 import { prisma } from "@/lib/prisma";
 import { requireRoleRequest } from "@/lib/rbac";
-import { assertMonthUnlocked, getActiveShiftForUser, recalculateAttendanceDay } from "@/lib/attendance";
-import { WARNING_FLAGS } from "@/lib/constants";
+import { assertMonthUnlocked, getActiveShiftForUser, getScheduleReferenceForAttendance, recalculateAttendanceDay } from "@/lib/attendance";
 
 const schema = z.object({
   checkInAt: z.string().datetime().nullable().optional(),
   checkOutAt: z.string().datetime().nullable().optional(),
-  status: z.nativeEnum(AttendanceStatus).optional(),
-  warningFlagsJson: z.array(z.enum(WARNING_FLAGS)).optional(),
 });
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -38,9 +35,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (finalCheckIn && finalCheckOut && finalCheckOut <= finalCheckIn) {
     return fail("Giờ ra phải sau giờ vào", 400);
   }
-  if (payload.data.status !== undefined) data.status = payload.data.status;
-  if (payload.data.warningFlagsJson !== undefined) data.warningFlagsJson = JSON.stringify(payload.data.warningFlagsJson);
-
   const updated = await prisma.$transaction(async (tx) => {
     const unlocked = await assertMonthUnlocked(existing.workDate, tx);
     if (!unlocked) {
@@ -52,7 +46,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       data,
     });
 
-    const shift = await getActiveShiftForUser(modified.userId, new Date(`${modified.workDate}T12:00:00.000+07:00`), tx);
+    const shift = await getActiveShiftForUser(modified.userId, getScheduleReferenceForAttendance(modified), tx);
     return recalculateAttendanceDay(tx, modified, shift);
   }).catch((e) => {
     if (e instanceof Error && e.message === "MONTH_LOCKED") return "MONTH_LOCKED" as const;

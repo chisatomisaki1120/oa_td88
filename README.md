@@ -23,6 +23,11 @@ npm run dev
 
 Mở `http://localhost:3001`.
 
+## DATABASE_URL
+- Nếu không đặt `DATABASE_URL`, ứng dụng sẽ mặc định dùng SQLite local tại `file:./prisma/dev.db`.
+- Điều này áp dụng cho dev và cả build local của dự án.
+- Khi deploy production, bạn vẫn nên cấu hình `DATABASE_URL` rõ ràng để tránh phụ thuộc vào mặc định.
+
 ## Tài khoản mẫu sau khi seed
 - Chỉ dùng cho môi trường phát triển nội bộ. Đổi mật khẩu ngay khi triển khai thật.
 - `superadmin` / `123456`

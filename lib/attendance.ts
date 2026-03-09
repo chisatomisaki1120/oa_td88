@@ -182,6 +182,13 @@ function withEarlyLeaveWarning(
   return status;
 }
 
+export function getScheduleReferenceForAttendance(attendanceDay: Pick<AttendanceDay, "workDate" | "checkInAt">): Date {
+  if (attendanceDay.checkInAt) return attendanceDay.checkInAt;
+  const noonUtc = parseWorkDateToUtc(attendanceDay.workDate);
+  noonUtc.setUTCHours(12, 0, 0, 0);
+  return noonUtc;
+}
+
 export async function recalculateAttendanceDay(
   tx: Prisma.TransactionClient,
   attendanceDay: AttendanceDay,
@@ -249,7 +256,16 @@ export async function getOrCreateTodayAttendance(tx: Prisma.TransactionClient, u
   return getOrCreateAttendanceByWorkDate(tx, userId, vnDateString());
 }
 
-export async function getOrCreateCurrentShiftAttendance(tx: Prisma.TransactionClient, userId: string, now: Date = new Date()): Promise<AttendanceDay> {
+/**
+ * Compute the actual DateTime when a shift ends for a given workDate.
+ * For normal shifts (e.g. 08:00–17:00): endTime is on the same calendar day.
+ * For overnight shifts (e.g. 22:00–06:00): endTime is on the next calendar day.
+ */
+export async function getPendingPreviousOpenAttendance(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  now: Date = new Date(),
+): Promise<AttendanceDay | null> {
   const today = vnDateString(now);
   const yesterday = shiftWorkDate(today, -1);
 
@@ -266,14 +282,18 @@ export async function getOrCreateCurrentShiftAttendance(tx: Prisma.TransactionCl
     orderBy: { workDate: "desc" },
   });
 
-  if (openAttendance) {
-    // If the open attendance is from the current resolved work date, return it normally
-    // (e.g. still within the same shift, or same-day re-check)
-    if (openAttendance.workDate === resolvedWorkDate) return openAttendance;
+  if (!openAttendance) return null;
+  if (openAttendance.workDate === resolvedWorkDate) return null;
+  return openAttendance;
+}
 
-    // Previous shift still open — block and notify
-    throw new Error("PREVIOUS_SHIFT_OPEN");
+export async function getOrCreateCurrentShiftAttendance(tx: Prisma.TransactionClient, userId: string, now: Date = new Date()): Promise<AttendanceDay> {
+  const pendingPrevious = await getPendingPreviousOpenAttendance(tx, userId, now);
+  if (pendingPrevious) {
+    throw new Error("PREVIOUS_SHIFT_NOT_CHECKED_OUT");
   }
 
+  const schedule = await getActiveShiftForUser(userId, now, tx);
+  const resolvedWorkDate = resolveWorkDateForShiftMoment(schedule, now);
   return getOrCreateAttendanceByWorkDate(tx, userId, resolvedWorkDate);
 }

@@ -27,6 +27,18 @@ type Day = {
   breakSessions: BreakSession[];
 };
 
+type PendingPreviousShift = {
+  id: string;
+  workDate: string;
+  checkInAt: string | null;
+  checkOutAt: string | null;
+} | null;
+
+type AttendanceMeResponse = {
+  items: Day[];
+  pendingPreviousShift: PendingPreviousShift;
+};
+
 const WEEK_DAYS = ["THỨ HAI", "THỨ BA", "THỨ TƯ", "THỨ NĂM", "THỨ SÁU", "THỨ BẢY", "CHỦ NHẬT"] as const;
 const LEAVE_OPTIONS = ["Nghỉ phép", "Bổ sung thẻ", "Việc riêng", "Khác"] as const;
 function getTodayVN() {
@@ -68,6 +80,8 @@ export default function EmployeeToday() {
   const [breakType, setBreakType] = useState<"WC_SMOKE" | "MEAL" | "OTHER">("WC_SMOKE");
   const [leaveType, setLeaveType] = useState<(typeof LEAVE_OPTIONS)[number]>("Nghỉ phép");
   const [note, setNote] = useState("");
+  const [pendingPreviousShift, setPendingPreviousShift] = useState<PendingPreviousShift>(null);
+  const pendingShiftPopupShownRef = useRef<string | null>(null);
 
   const rowsByDate = useMemo(() => new Map(rows.map((r) => [r.workDate, r])), [rows]);
   const selectedDay = rowsByDate.get(selectedDate) ?? null;
@@ -98,8 +112,9 @@ export default function EmployeeToday() {
       const prevLast = new Date(y, m - 1, 0);
       const from = `${prevLast.getFullYear()}-${String(prevLast.getMonth() + 1).padStart(2, "0")}-${String(prevLast.getDate()).padStart(2, "0")}`;
       const to = `${targetMonth}-${String(daysInMonth).padStart(2, "0")}`;
-      const data = await apiJson<Day[]>(`/api/attendance/me?from=${from}&to=${to}`);
-      setRows(data);
+      const data = await apiJson<AttendanceMeResponse>(`/api/attendance/me?from=${from}&to=${to}`);
+      setRows(data.items);
+      setPendingPreviousShift(data.pendingPreviousShift);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Không tải được dữ liệu");
     }
@@ -132,6 +147,19 @@ export default function EmployeeToday() {
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    if (!pendingPreviousShift) {
+      pendingShiftPopupShownRef.current = null;
+      return;
+    }
+    if (pendingShiftPopupShownRef.current === pendingPreviousShift.id) return;
+
+    pendingShiftPopupShownRef.current = pendingPreviousShift.id;
+    window.alert(
+      `Bạn chưa xuống ca của ngày làm việc trước đó (${pendingPreviousShift.workDate}). Vui lòng liên hệ quản lý để xử lý trước khi tiếp tục chấm công.`,
+    );
+  }, [pendingPreviousShift]);
+
   const postingRef = useRef(false);
   async function post(url: string, body?: unknown) {
     if (postingRef.current) return;
@@ -146,7 +174,11 @@ export default function EmployeeToday() {
       setSelectedDate(todayVn);
       await load(currentMonth);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Thao tác thất bại");
+      const message = err instanceof Error ? err.message : "Thao tác thất bại";
+      setError(message);
+      if (message.includes("Bạn chưa xuống ca của ngày làm việc trước đó")) {
+        window.alert(message);
+      }
       await load().catch(() => {});
     } finally {
       postingRef.current = false;

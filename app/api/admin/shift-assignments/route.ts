@@ -25,21 +25,43 @@ export async function POST(request: NextRequest) {
     return fail("Ngày kết thúc phải sau ngày bắt đầu", 400);
   }
 
-  const [userExists, shiftExists] = await Promise.all([
-    prisma.user.findUnique({ where: { id: payload.data.userId }, select: { id: true } }),
-    prisma.shift.findUnique({ where: { id: payload.data.shiftId }, select: { id: true } }),
-  ]);
-  if (!userExists) return fail("Nhân viên không tồn tại", 404);
-  if (!shiftExists) return fail("Ca làm việc không tồn tại", 404);
+  const effectiveFrom = new Date(payload.data.effectiveFrom);
+  const effectiveTo = payload.data.effectiveTo ? new Date(payload.data.effectiveTo) : null;
 
-  const assignment = await prisma.employeeShiftAssignment.create({
-    data: {
-      userId: payload.data.userId,
-      shiftId: payload.data.shiftId,
-      effectiveFrom: new Date(payload.data.effectiveFrom),
-      effectiveTo: payload.data.effectiveTo ? new Date(payload.data.effectiveTo) : null,
-    },
+  const assignment = await prisma.$transaction(async (tx) => {
+    const [userExists, shiftExists] = await Promise.all([
+      tx.user.findUnique({ where: { id: payload.data.userId }, select: { id: true } }),
+      tx.shift.findUnique({ where: { id: payload.data.shiftId }, select: { id: true } }),
+    ]);
+    if (!userExists) throw new Error("USER_NOT_FOUND");
+    if (!shiftExists) throw new Error("SHIFT_NOT_FOUND");
+
+    const overlapping = await tx.employeeShiftAssignment.findFirst({
+      where: {
+        userId: payload.data.userId,
+        effectiveFrom: { lte: effectiveTo ?? new Date("9999-12-31T23:59:59.999Z") },
+        OR: [{ effectiveTo: null }, { effectiveTo: { gte: effectiveFrom } }],
+      },
+      select: { id: true },
+    });
+    if (overlapping) throw new Error("OVERLAPPING_ASSIGNMENT");
+
+    return tx.employeeShiftAssignment.create({
+      data: {
+        userId: payload.data.userId,
+        shiftId: payload.data.shiftId,
+        effectiveFrom,
+        effectiveTo,
+      },
+    });
+  }).catch((e) => {
+    if (e instanceof Error) return e.message;
+    throw e;
   });
+
+  if (assignment === "USER_NOT_FOUND") return fail("Nhân viên không tồn tại", 404);
+  if (assignment === "SHIFT_NOT_FOUND") return fail("Ca làm việc không tồn tại", 404);
+  if (assignment === "OVERLAPPING_ASSIGNMENT") return fail("Khoảng thời gian ca làm bị chồng chéo với assignment hiện có", 409);
 
   return ok(assignment, { status: 201 });
 }

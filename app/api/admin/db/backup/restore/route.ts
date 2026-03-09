@@ -9,7 +9,7 @@ import { requireRoleRequest } from "@/lib/rbac";
 import { resolveDbPath, getBackupDir } from "../route";
 
 export async function POST(request: NextRequest) {
-  const actor = await requireRoleRequest(request, [Role.ADMIN, Role.SUPER_ADMIN]);
+  const actor = await requireRoleRequest(request, [Role.SUPER_ADMIN]);
   if (!actor) return fail("Forbidden", 403);
   if (!validateCsrf(request)) return fail("Invalid CSRF token", 403);
 
