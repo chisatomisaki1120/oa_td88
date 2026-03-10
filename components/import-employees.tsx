@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import { getCsrfToken, ensureCsrf } from "@/lib/client-api";
 import { ErrorMessage, SuccessMessage } from "@/components/ui-feedback";
 
-type PreviewRow = { row: number; username: string; fullName: string; role: string; department: string; shift: string; action?: string; error?: string };
+type PreviewRow = { row: number; username: string; fullName: string; role: string; department: string; shift: string; status: string; workMode: string; lateGrace: string; earlyLeaveGrace: string; offDays: string; action?: string; error?: string };
 type PreviewResult = { mode: "preview"; valid: number; invalid: number; total: number; previews: PreviewRow[]; columns: string[] };
 type CommitResult = { mode: "commit"; created: number; updated: number; total: number };
 
@@ -62,7 +62,7 @@ export default function ImportEmployees() {
     <div className="card">
       <h3 style={{ marginTop: 0 }}>Import nhân viên từ file</h3>
       <p className="small" style={{ margin: "0 0 8px" }}>
-        Hỗ trợ CSV, XLS, XLSX. Cần cột: username/mã NV, fullName/họ tên. Tùy chọn: password (mặc định = username), role, department, email, phone, ca làm việc (tên ca), giờ vào, giờ ra.
+        Hỗ trợ CSV, XLS, XLSX. Cần cột: Tên đăng nhập, Họ và tên. Tùy chọn: Password (mặc định = username), Email, Điện thoại, Chức vụ, Vai trò, Ca làm việc, Trạng thái, Giờ vào, Giờ ra, Phút trễ cho phép, Phút về sớm cho phép, Hình thức, Nghỉ/tháng.
       </p>
       <div className="row">
         <input ref={fileRef} type="file" accept=".csv,.xls,.xlsx" />
@@ -81,7 +81,7 @@ export default function ImportEmployees() {
           <div style={{ maxHeight: 300, overflowY: "auto" }}>
             <table style={{ fontSize: 13 }}>
               <thead>
-                <tr><th>Dòng</th><th>Username</th><th>Họ tên</th><th>Vai trò</th><th>Chức vụ</th><th>Ca làm</th><th>Trạng thái</th></tr>
+                <tr><th>Dòng</th><th>Username</th><th>Họ tên</th><th>Vai trò</th><th>Chức vụ</th><th>Ca làm</th><th>Trạng thái</th><th>Hình thức</th><th>Trễ</th><th>Về sớm</th><th>Nghỉ</th><th>Kết quả</th></tr>
               </thead>
               <tbody>
                 {preview.previews.map((r) => (
@@ -92,6 +92,11 @@ export default function ImportEmployees() {
                     <td>{r.role}</td>
                     <td>{r.department}</td>
                     <td>{r.shift}</td>
+                    <td>{r.status}</td>
+                    <td>{r.workMode}</td>
+                    <td>{r.lateGrace}</td>
+                    <td>{r.earlyLeaveGrace}</td>
+                    <td>{r.offDays}</td>
                     <td style={{ color: r.error ? "#b91c1c" : r.action === "Cập nhật" ? "#b45309" : "#047857" }}>{r.error ?? r.action ?? "OK"}</td>
                   </tr>
                 ))}

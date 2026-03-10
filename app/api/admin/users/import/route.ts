@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { Role } from "@prisma/client";
+import { Role, WorkMode } from "@prisma/client";
 import * as XLSX from "xlsx";
 import { fail, ok } from "@/lib/api";
 import { hashPassword } from "@/lib/auth";
@@ -17,6 +17,22 @@ const ROLE_ALIASES: Record<string, string> = {
   "QUẢN TRỊ VIÊN": "ADMIN",
   "QUẢN TRỊ": "ADMIN",
   "NHÂN VIÊN": "EMPLOYEE",
+};
+
+const WORKMODE_ALIASES: Record<string, WorkMode> = {
+  "ONLINE": WorkMode.ONLINE,
+  "OFFLINE": WorkMode.OFFLINE,
+  "TRỰC TUYẾN": WorkMode.ONLINE,
+  "TRỰC TIẾP": WorkMode.OFFLINE,
+};
+
+const ACTIVE_ALIASES: Record<string, boolean> = {
+  "TRUE": true, "FALSE": false,
+  "1": true, "0": false,
+  "HOẠT ĐỘNG": true, "NGƯNG": false,
+  "ĐANG LÀM": true, "NGHỈ VIỆC": false,
+  "CÒN LÀM": true, "ĐÃ NGHỈ": false,
+  "ACTIVE": true, "INACTIVE": false,
 };
 
 // POST /api/admin/users/import - preview or commit import
@@ -54,6 +70,11 @@ export async function POST(request: NextRequest) {
   const shiftCol = findCol(["shift", "ca", "ca làm", "ca làm việc", "ca_lam_viec"]);
   const workStartCol = findCol(["giờ vào", "gio_vao", "workstarttime", "work_start_time", "start_time"]);
   const workEndCol = findCol(["giờ ra", "gio_ra", "workendtime", "work_end_time", "end_time"]);
+  const lateGraceCol = findCol(["phút trễ", "phut_tre", "lategraceminutes", "late_grace"]);
+  const earlyLeaveCol = findCol(["phút về sớm", "phut_ve_som", "earlyleavegraceminutes", "early_leave_grace"]);
+  const statusCol = findCol(["trạng thái", "trang_thai", "status", "isactive"]);
+  const workModeCol = findCol(["hình thức", "hinh_thuc", "workmode", "work_mode"]);
+  const offDaysCol = findCol(["nghỉ/tháng", "nghi_thang", "allowedoffdayspermonth", "allowed_off", "off_days"]);
 
   if (!usernameCol || !fullNameCol) {
     return fail(`Cần cột: username/mã NV và fullName/họ tên. Các cột: ${cols.join(", ")}`, 400);
@@ -76,6 +97,11 @@ export async function POST(request: NextRequest) {
     role: string;
     department: string;
     shift: string;
+    status: string;
+    workMode: string;
+    lateGrace: string;
+    earlyLeaveGrace: string;
+    offDays: string;
     action?: string;
     error?: string;
   };
@@ -92,6 +118,11 @@ export async function POST(request: NextRequest) {
     workStartTime: string | null;
     workEndTime: string | null;
     shiftId: string | null;
+    lateGraceMinutes: number;
+    earlyLeaveGraceMinutes: number;
+    isActive: boolean;
+    workMode: WorkMode;
+    allowedOffDaysPerMonth: number;
   }> = [];
 
   const toUpdate: Array<{
@@ -105,6 +136,11 @@ export async function POST(request: NextRequest) {
     workStartTime: string | null;
     workEndTime: string | null;
     shiftId: string | null;
+    lateGraceMinutes: number;
+    earlyLeaveGraceMinutes: number;
+    isActive: boolean;
+    workMode: WorkMode;
+    allowedOffDaysPerMonth: number;
   }> = [];
 
   const seenUsernames = new Set<string>();
@@ -122,14 +158,36 @@ export async function POST(request: NextRequest) {
     const shiftName = shiftCol ? String(raw[shiftCol] ?? "").trim() : "";
     const workStartTime = workStartCol ? String(raw[workStartCol] ?? "").trim() : "";
     const workEndTime = workEndCol ? String(raw[workEndCol] ?? "").trim() : "";
+    const lateGraceStr = lateGraceCol ? String(raw[lateGraceCol] ?? "").trim() : "";
+    const earlyLeaveStr = earlyLeaveCol ? String(raw[earlyLeaveCol] ?? "").trim() : "";
+    const statusStr = statusCol ? String(raw[statusCol] ?? "").trim().toUpperCase() : "";
+    const workModeStr = workModeCol ? String(raw[workModeCol] ?? "").trim().toUpperCase() : "";
+    const offDaysStr = offDaysCol ? String(raw[offDaysCol] ?? "").trim() : "";
 
     const matchedShift = shiftName ? shiftByName.get(shiftName.toLowerCase()) ?? null : null;
 
-    const preview: PreviewRow = { row: i + 2, username, fullName, role: normalizedRole, department, shift: shiftName };
+    // Parse numeric fields with defaults
+    const lateGraceMinutes = lateGraceStr ? parseInt(lateGraceStr, 10) : 5;
+    const earlyLeaveGraceMinutes = earlyLeaveStr ? parseInt(earlyLeaveStr, 10) : 5;
+    const allowedOffDaysPerMonth = offDaysStr ? parseInt(offDaysStr, 10) : 2;
+    const isActive = statusStr ? (ACTIVE_ALIASES[statusStr] ?? true) : true;
+    const workMode = workModeStr ? (WORKMODE_ALIASES[workModeStr] ?? WorkMode.OFFLINE) : WorkMode.OFFLINE;
+
+    const preview: PreviewRow = {
+      row: i + 2, username, fullName, role: normalizedRole, department, shift: shiftName,
+      status: isActive ? "Hoạt động" : "Ngưng",
+      workMode: workMode === WorkMode.ONLINE ? "Online" : "Offline",
+      lateGrace: String(lateGraceMinutes),
+      earlyLeaveGrace: String(earlyLeaveGraceMinutes),
+      offDays: String(allowedOffDaysPerMonth),
+    };
 
     if (!username || username.length < 2) { preview.error = "Username quá ngắn"; previews.push(preview); continue; }
     if (!fullName) { preview.error = "Thiếu họ tên"; previews.push(preview); continue; }
     if (seenUsernames.has(username)) { preview.error = "Username trùng trong file"; previews.push(preview); continue; }
+    if (lateGraceStr && (isNaN(lateGraceMinutes) || lateGraceMinutes < 0 || lateGraceMinutes > 180)) { preview.error = "Phút trễ không hợp lệ (0-180)"; previews.push(preview); continue; }
+    if (earlyLeaveStr && (isNaN(earlyLeaveGraceMinutes) || earlyLeaveGraceMinutes < 0 || earlyLeaveGraceMinutes > 180)) { preview.error = "Phút về sớm không hợp lệ (0-180)"; previews.push(preview); continue; }
+    if (offDaysStr && (isNaN(allowedOffDaysPerMonth) || allowedOffDaysPerMonth < 0 || allowedOffDaysPerMonth > 31)) { preview.error = "Ngày nghỉ/tháng không hợp lệ (0-31)"; previews.push(preview); continue; }
 
     const isExisting = existingUserMap.has(username);
 
@@ -161,6 +219,11 @@ export async function POST(request: NextRequest) {
         workStartTime: workStartTime || null,
         workEndTime: workEndTime || null,
         shiftId: matchedShift?.id ?? null,
+        lateGraceMinutes,
+        earlyLeaveGraceMinutes,
+        isActive,
+        workMode,
+        allowedOffDaysPerMonth,
       });
     } else {
       toCreate.push({
@@ -174,6 +237,11 @@ export async function POST(request: NextRequest) {
         workStartTime: workStartTime || null,
         workEndTime: workEndTime || null,
         shiftId: matchedShift?.id ?? null,
+        lateGraceMinutes,
+        earlyLeaveGraceMinutes,
+        isActive,
+        workMode,
+        allowedOffDaysPerMonth,
       });
     }
   }
