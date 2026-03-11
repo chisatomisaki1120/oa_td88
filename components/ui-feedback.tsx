@@ -18,8 +18,8 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="card" style={{ borderColor: "#fca5a5" }}>
-          <h3 style={{ marginTop: 0, color: "#b91c1c" }}>⚠ Đã xảy ra lỗi</h3>
+        <div className="card" style={{ borderColor: "var(--danger)" }}>
+          <h3 style={{ marginTop: 0, color: "var(--danger)" }}>⚠ Đã xảy ra lỗi</h3>
           <p>{this.state.message}</p>
           <button onClick={() => this.setState({ hasError: false, message: "" })}>Thử lại</button>
         </div>
@@ -32,7 +32,7 @@ export class ErrorBoundary extends Component<Props, State> {
 export function ErrorMessage({ error }: { error: string }) {
   if (!error) return null;
   return (
-    <p role="alert" style={{ color: "#b91c1c", fontSize: 14 }}>
+    <p role="alert" style={{ color: "var(--danger)", fontSize: 14 }}>
       ⚠ {error}
     </p>
   );
@@ -41,7 +41,7 @@ export function ErrorMessage({ error }: { error: string }) {
 export function SuccessMessage({ message }: { message: string }) {
   if (!message) return null;
   return (
-    <p role="status" style={{ color: "#047857", fontSize: 14 }}>
+    <p role="status" style={{ color: "var(--primary)", fontSize: 14 }}>
       ✓ {message}
     </p>
   );
@@ -50,7 +50,7 @@ export function SuccessMessage({ message }: { message: string }) {
 export function EmptyState({ message = "Không có dữ liệu" }: { message?: string }) {
   return (
     <tr>
-      <td colSpan={99} style={{ textAlign: "center", color: "#6b7280", padding: 24 }}>
+      <td colSpan={99} style={{ textAlign: "center", color: "var(--muted)", padding: 24 }}>
         {message}
       </td>
     </tr>

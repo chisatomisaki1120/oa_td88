@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
     const current =
       summaryByUser.get(key) ??
       ({
-        employeeName: `${row.user.fullName} (${row.user.username})`,
+        employeeName: row.user.username,
         department: row.user.department ?? "",
         allowedOffDaysPerMonth: row.user.allowedOffDaysPerMonth,
         totalDays: 0,

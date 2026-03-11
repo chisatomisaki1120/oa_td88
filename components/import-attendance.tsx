@@ -75,7 +75,7 @@ export default function ImportAttendance() {
                       <td>{r.row}</td>
                       <td>{r.username}</td>
                       <td>{r.workDate}</td>
-                      <td style={{ color: "#b91c1c" }}>{r.error}</td>
+                      <td style={{ color: "var(--danger)" }}>{r.error}</td>
                     </tr>
                   ))}
                 </tbody>

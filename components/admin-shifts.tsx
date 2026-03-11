@@ -103,7 +103,7 @@ export default function AdminShifts() {
           <select value={assign.userId} onChange={(e) => setAssign((a) => ({ ...a, userId: e.target.value }))}>
             {users.map((u) => (
               <option key={u.id} value={u.id}>
-                {u.fullName} ({u.username})
+                {u.username}
               </option>
             ))}
           </select>

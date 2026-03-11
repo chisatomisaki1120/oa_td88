@@ -85,8 +85,8 @@ export default function AdminSecuritySettings() {
       <button disabled={loading} onClick={save}>
         {loading ? "Đang lưu..." : "Lưu cài đặt"}
       </button>
-      {message && <p style={{ color: "#047857" }}>{message}</p>}
-      {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
+      {message && <p style={{ color: "var(--primary)" }}>{message}</p>}
+      {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
     </div>
   );
 }

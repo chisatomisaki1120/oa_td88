@@ -10,7 +10,7 @@ CREATE TABLE "User" (
     "workEndTime" TEXT,
     "lateGraceMinutes" INTEGER NOT NULL DEFAULT 5,
     "earlyLeaveGraceMinutes" INTEGER NOT NULL DEFAULT 5,
-    "breakPolicyJson" TEXT NOT NULL DEFAULT '{"wcSmoke":{"maxCount":3,"maxMinutesEach":10},"meal":{"maxCount":2,"maxMinutesEach":40}}',
+    "breakPolicyJson" TEXT NOT NULL DEFAULT '{"wc":{"maxCount":3,"maxMinutesEach":10},"smoke":{"maxCount":3,"maxMinutesEach":10},"meal":{"maxCount":2,"maxMinutesEach":40}}',
     "workMode" TEXT NOT NULL DEFAULT 'OFFLINE',
     "role" TEXT NOT NULL DEFAULT 'EMPLOYEE',
     "isActive" BOOLEAN NOT NULL DEFAULT true,

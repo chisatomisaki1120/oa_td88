@@ -18,6 +18,13 @@
   --strip-extra: #9cb5ff;
   --strip-absent: #fca5a5;
   --legend-text: #1f2937;
+  --btn-secondary: #374151;
+  --btn-secondary-text: #fff;
+  --btn-disabled-bg: #d1d5db;
+  --btn-disabled-text: #9ca3af;
+  --calendar-header: #2d75ae;
+  --expanded-bg: #f9f9f9;
+  --input-bg: var(--surface);
 }
 
 [data-theme="dark"] {
@@ -40,6 +47,13 @@
   --strip-extra: #1e3a8a;
   --strip-absent: #991b1b;
   --legend-text: #e2e8f0;
+  --btn-secondary: #475569;
+  --btn-secondary-text: #e2e8f0;
+  --btn-disabled-bg: #334155;
+  --btn-disabled-text: #64748b;
+  --calendar-header: #1e3a5f;
+  --expanded-bg: #253349;
+  --input-bg: #1e293b;
 }
 
 * {
@@ -57,6 +71,11 @@ body {
 [data-theme="light"] body {
   background: radial-gradient(circle at 10% 10%, #dbeafe 0%, #f4f6f8 35%),
     radial-gradient(circle at 90% 90%, #d1fae5 0%, #f4f6f8 30%);
+}
+
+[data-theme="dark"] body {
+  background: radial-gradient(circle at 10% 10%, #0c1a3d 0%, #0f172a 40%),
+    radial-gradient(circle at 90% 90%, #061c1a 0%, #0f172a 35%);
 }
 
 a {
@@ -92,7 +111,7 @@ textarea {
   padding: 8px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--surface);
+  background: var(--input-bg);
   color: var(--text);
 }
 
@@ -103,8 +122,16 @@ button {
   cursor: pointer;
 }
 
+button:disabled {
+  background: var(--btn-disabled-bg);
+  color: var(--btn-disabled-text);
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
 button.secondary {
-  background: #374151;
+  background: var(--btn-secondary);
+  color: var(--btn-secondary-text);
 }
 
 button.danger {
@@ -132,7 +159,8 @@ button.danger {
 }
 
 .btn.secondary {
-  background: #374151;
+  background: var(--btn-secondary);
+  color: var(--btn-secondary-text);
 }
 
 table {
@@ -211,6 +239,120 @@ td {
   margin-bottom: 8px;
 }
 
+.employee-clock__status-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.employee-clock__status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.employee-clock__status-banner--neutral {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+.employee-clock__status-banner--neutral .employee-clock__status-dot { background: var(--muted); }
+
+.employee-clock__status-banner--warn {
+  background: #fff8e1;
+  border: 1px solid #ffc107;
+  color: #795548;
+}
+.employee-clock__status-banner--warn .employee-clock__status-dot { background: #ffc107; }
+
+.employee-clock__status-banner--active {
+  background: #e8f5e9;
+  border: 1px solid #4caf50;
+  color: #2e7d32;
+}
+.employee-clock__status-banner--active .employee-clock__status-dot { background: #4caf50; animation: pulse-dot 1.5s infinite; }
+
+.employee-clock__status-banner--break {
+  background: #e3f2fd;
+  border: 1px solid #2196f3;
+  color: #1565c0;
+}
+.employee-clock__status-banner--break .employee-clock__status-dot { background: #2196f3; animation: pulse-dot 1.5s infinite; }
+
+.employee-clock__status-banner--done {
+  background: #f3e5f5;
+  border: 1px solid #9c27b0;
+  color: #6a1b9a;
+}
+.employee-clock__status-banner--done .employee-clock__status-dot { background: #9c27b0; }
+
+.employee-clock__status-banner--off {
+  background: #fce4ec;
+  border: 1px solid #e91e63;
+  color: #c2185b;
+}
+.employee-clock__status-banner--off .employee-clock__status-dot { background: #e91e63; }
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.employee-clock__warnings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.employee-clock__warning-tag {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  background: #fff3e0;
+  border: 1px solid #ff9800;
+  color: #e65100;
+}
+
+[data-theme="dark"] .employee-clock__status-banner--warn {
+  background: #3e2723;
+  border-color: #795548;
+  color: #ffcc80;
+}
+[data-theme="dark"] .employee-clock__status-banner--active {
+  background: #1b5e20;
+  border-color: #388e3c;
+  color: #a5d6a7;
+}
+[data-theme="dark"] .employee-clock__status-banner--break {
+  background: #0d47a1;
+  border-color: #1976d2;
+  color: #90caf9;
+}
+[data-theme="dark"] .employee-clock__status-banner--done {
+  background: #4a148c;
+  border-color: #7b1fa2;
+  color: #ce93d8;
+}
+[data-theme="dark"] .employee-clock__status-banner--off {
+  background: #880e4f;
+  border-color: #c2185b;
+  color: #f48fb1;
+}
+[data-theme="dark"] .employee-clock__warning-tag {
+  background: #4e342e;
+  border-color: #795548;
+  color: #ffcc80;
+}
+
 .employee-clock__layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 280px;
@@ -248,7 +390,7 @@ td {
 }
 
 .employee-clock__table thead th {
-  background: #2d75ae;
+  background: var(--calendar-header);
   color: #ffffff;
   font-size: 12px;
   text-align: center;
@@ -480,6 +622,80 @@ td {
 
 .employee-clock__help p {
   margin: 4px 0;
+}
+
+.employee-clock__popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: popup-fade-in 0.15s ease-out;
+}
+
+.employee-clock__popup {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 28px 32px;
+  min-width: 300px;
+  max-width: 420px;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  animation: popup-scale-in 0.2s ease-out;
+}
+
+.employee-clock__popup-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.employee-clock__popup--success .employee-clock__popup-icon {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+.employee-clock__popup--error .employee-clock__popup-icon {
+  background: #fce4ec;
+  color: #c62828;
+}
+
+.employee-clock__popup p {
+  margin: 0 0 16px;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.employee-clock__popup button {
+  min-width: 80px;
+}
+
+[data-theme="dark"] .employee-clock__popup--success .employee-clock__popup-icon {
+  background: #1b5e20;
+  color: #a5d6a7;
+}
+[data-theme="dark"] .employee-clock__popup--error .employee-clock__popup-icon {
+  background: #880e4f;
+  color: #f48fb1;
+}
+
+@keyframes popup-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes popup-scale-in {
+  from { transform: scale(0.85); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
 
 @media (max-width: 980px) {

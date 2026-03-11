@@ -42,8 +42,8 @@ export async function POST(request: NextRequest) {
       },
     });
   }).catch((e) => {
-    if (!(e instanceof Error)) throw e;
-    return e.message;
+    if (e instanceof Error && ["NO_CHECKIN", "ALREADY_CHECKOUT", "BREAK_OPEN"].includes(e.message)) return e.message;
+    throw e;
   });
 
   if (result === "NO_CHECKIN") return fail("Bạn chưa check-in", 409);

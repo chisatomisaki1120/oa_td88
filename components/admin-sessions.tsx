@@ -67,7 +67,7 @@ export default function AdminSessions() {
         <tbody>
           {sessions.map((s) => (
             <tr key={s.id}>
-              <td>{s.user.fullName} ({s.user.username})</td>
+              <td>{s.user.username}</td>
               <td>{roleLabel(s.user.role)}</td>
               <td>{s.ipAddress}</td>
               <td>{fmtDateTime(s.lastSeenAt)}</td>

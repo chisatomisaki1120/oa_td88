@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     const shift = await getActiveShiftForUser(user.id, new Date(), tx);
     return recalculateAttendanceDay(tx, today, shift);
   }).catch((e) => {
-    if (e instanceof Error) return e.message as "NO_CHECKIN" | "NO_OPEN_BREAK";
+    if (e instanceof Error && (e.message === "NO_CHECKIN" || e.message === "NO_OPEN_BREAK")) return e.message;
     throw e;
   });
 

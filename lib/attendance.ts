@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { minutesBetween, parseHHMM, shiftWorkDate, vnDateString, vnMinuteOfDay } from "@/lib/time";
 
 export type BreakPolicy = {
-  wcSmoke: { maxCount: number; maxMinutesEach: number };
+  wc: { maxCount: number; maxMinutesEach: number };
+  smoke: { maxCount: number; maxMinutesEach: number };
   meal: { maxCount: number; maxMinutesEach: number };
 };
 
@@ -16,7 +17,8 @@ export type WorkSchedule = {
 };
 
 export const DEFAULT_BREAK_POLICY: BreakPolicy = {
-  wcSmoke: { maxCount: 3, maxMinutesEach: 10 },
+  wc: { maxCount: 3, maxMinutesEach: 10 },
+  smoke: { maxCount: 3, maxMinutesEach: 10 },
   meal: { maxCount: 2, maxMinutesEach: 40 },
 };
 
@@ -78,7 +80,12 @@ export async function getActiveShiftForUser(userId: string, atDate: Date = new D
 function getBreakPolicy(schedule: WorkSchedule | null): BreakPolicy {
   if (!schedule) return DEFAULT_BREAK_POLICY;
   try {
-    return JSON.parse(schedule.breakPolicyJson) as BreakPolicy;
+    const raw = JSON.parse(schedule.breakPolicyJson);
+    return {
+      wc: raw.wc ?? raw.wcSmoke ?? DEFAULT_BREAK_POLICY.wc,
+      smoke: raw.smoke ?? raw.wcSmoke ?? DEFAULT_BREAK_POLICY.smoke,
+      meal: raw.meal ?? DEFAULT_BREAK_POLICY.meal,
+    };
   } catch {
     return DEFAULT_BREAK_POLICY;
   }
@@ -86,14 +93,19 @@ function getBreakPolicy(schedule: WorkSchedule | null): BreakPolicy {
 
 function calculateWarnings(breaks: BreakSession[], policy: BreakPolicy): string[] {
   const warnings: string[] = [];
-  const wcSmoke = breaks.filter((b) => b.breakType === BreakType.WC_SMOKE);
+  const wc = breaks.filter((b) => b.breakType === BreakType.WC);
+  const smoke = breaks.filter((b) => b.breakType === BreakType.SMOKE);
   const meals = breaks.filter((b) => b.breakType === BreakType.MEAL);
 
-  if (wcSmoke.length > policy.wcSmoke.maxCount) warnings.push("WC_SMOKE_COUNT_EXCEEDED");
+  if (wc.length > policy.wc.maxCount) warnings.push("WC_COUNT_EXCEEDED");
+  if (smoke.length > policy.smoke.maxCount) warnings.push("SMOKE_COUNT_EXCEEDED");
   if (meals.length > policy.meal.maxCount) warnings.push("MEAL_COUNT_EXCEEDED");
 
-  if (wcSmoke.some((b) => (b.durationMinutesComputed ?? 0) > policy.wcSmoke.maxMinutesEach)) {
-    warnings.push("WC_SMOKE_DURATION_EXCEEDED");
+  if (wc.some((b) => (b.durationMinutesComputed ?? 0) > policy.wc.maxMinutesEach)) {
+    warnings.push("WC_DURATION_EXCEEDED");
+  }
+  if (smoke.some((b) => (b.durationMinutesComputed ?? 0) > policy.smoke.maxMinutesEach)) {
+    warnings.push("SMOKE_DURATION_EXCEEDED");
   }
   if (meals.some((b) => (b.durationMinutesComputed ?? 0) > policy.meal.maxMinutesEach)) {
     warnings.push("MEAL_DURATION_EXCEEDED");

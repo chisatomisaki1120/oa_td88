@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiJson } from "@/lib/client-api";
-import { attendanceStatusLabel, breakTypeLabel } from "@/lib/display-labels";
+import { attendanceStatusLabel, breakTypeLabel, warningLabel, parseWarnings } from "@/lib/display-labels";
 import { fmtDateTime, fmtTime, VN_TIMEZONE } from "@/lib/time";
 
 type BreakSession = {
   id: string;
-  breakType: "WC_SMOKE" | "MEAL" | "OTHER";
+  breakType: "WC" | "SMOKE" | "MEAL" | "OTHER";
   startAt: string;
   endAt: string | null;
   durationMinutesComputed: number | null;
@@ -63,9 +63,14 @@ export default function EmployeeToday() {
   const [rows, setRows] = useState<Day[]>([]);
   const [clockText, setClockText] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
-  const [breakType, setBreakType] = useState<"WC_SMOKE" | "MEAL" | "OTHER">("WC_SMOKE");
+  const [popup, setPopup] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const popupTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const showPopup = useCallback((text: string, type: "success" | "error") => {
+    clearTimeout(popupTimerRef.current);
+    setPopup({ text, type });
+    popupTimerRef.current = setTimeout(() => setPopup(null), 4000);
+  }, []);
+  const [breakType, setBreakType] = useState<"WC" | "SMOKE" | "MEAL" | "OTHER">("WC");
   const [leaveType, setLeaveType] = useState<(typeof LEAVE_OPTIONS)[number]>("Nghỉ phép");
   const [note, setNote] = useState("");
 
@@ -90,7 +95,6 @@ export default function EmployeeToday() {
   }, [calendarMeta]);
 
   async function load(targetMonth = month) {
-    setError("");
     try {
       const { daysInMonth } = monthMeta(targetMonth);
       // Include last day of previous month to capture open overnight shifts at month boundary
@@ -101,7 +105,7 @@ export default function EmployeeToday() {
       const data = await apiJson<Day[]>(`/api/attendance/me?from=${from}&to=${to}`);
       setRows(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Không tải được dữ liệu");
+      showPopup(err instanceof Error ? err.message : "Không tải được dữ liệu", "error");
     }
   }
 
@@ -133,20 +137,19 @@ export default function EmployeeToday() {
   }, []);
 
   const postingRef = useRef(false);
-  async function post(url: string, body?: unknown) {
+  async function post(url: string, body?: unknown, successMsg?: string) {
     if (postingRef.current) return;
     postingRef.current = true;
     setLoading(true);
-    setError("");
-    setMessage("");
     try {
       await apiJson(url, { method: "POST", body: body ? JSON.stringify(body) : undefined });
       const currentMonth = todayVn.slice(0, 7);
       setMonth(currentMonth);
       setSelectedDate(todayVn);
       await load(currentMonth);
+      if (successMsg) showPopup(successMsg, "success");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Thao tác thất bại");
+      showPopup(err instanceof Error ? err.message : "Thao tác thất bại", "error");
       await load().catch(() => {});
     } finally {
       postingRef.current = false;
@@ -164,13 +167,11 @@ export default function EmployeeToday() {
 
   async function submitOffDay() {
     if (selectedOffDates.length === 0) {
-      setError("Vui lòng chọn ít nhất 1 ngày để báo nghỉ.");
+      showPopup("Vui lòng chọn ít nhất 1 ngày để báo nghỉ.", "error");
       return;
     }
     const reason = `${leaveType}${note.trim() ? ` - ${note.trim()}` : ""}`;
     setLoading(true);
-    setError("");
-    setMessage("");
     try {
       const result = await apiJson<{
         updatedDates: string[];
@@ -184,11 +185,12 @@ export default function EmployeeToday() {
       setSelectedOffDates([]);
       setOffDateSelectionMode(false);
       setNote("");
-      setMessage(
+      showPopup(
         `Đã báo nghỉ ${result.updatedDates.length} ngày. Bỏ qua: đã chấm công ${result.skippedAlreadyAttended.length}, đã nghỉ ${result.skippedAlreadyOff.length}.`,
+        "success",
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Báo nghỉ thất bại");
+      showPopup(err instanceof Error ? err.message : "Báo nghỉ thất bại", "error");
     } finally {
       setLoading(false);
     }
@@ -198,9 +200,34 @@ export default function EmployeeToday() {
     setSelectedOffDates((current) => (current.includes(date) ? current.filter((d) => d !== date) : [...current, date].sort()));
   }
 
+  const statusBanner = useMemo(() => {
+    if (!actionDay) return { text: "Chưa có dữ liệu chấm công", level: "neutral" as const };
+    if (actionDay.isOffDay) return { text: `Nghỉ phép${actionDay.offReason ? ` — ${actionDay.offReason}` : ""}`, level: "off" as const };
+    if (!actionDay.checkInAt) return { text: "Chưa lên ca", level: "warn" as const };
+    if (openBreak) return { text: `Đang nghỉ ${breakTypeLabel(openBreak.breakType)} từ ${fmtTime(openBreak.startAt)}`, level: "break" as const };
+    if (!actionDay.checkOutAt) return { text: `Đang làm việc — Lên ca lúc ${fmtTime(actionDay.checkInAt)}`, level: "active" as const };
+    return { text: `Đã xuống ca lúc ${fmtTime(actionDay.checkOutAt)}${actionDay.workedMinutes != null ? ` — ${Math.floor(actionDay.workedMinutes / 60)}h${String(actionDay.workedMinutes % 60).padStart(2, "0")}p` : ""}`, level: "done" as const };
+  }, [actionDay, openBreak]);
+
+  const warnings = useMemo(() => {
+    if (!actionDay) return [];
+    return parseWarnings(actionDay.warningFlagsJson);
+  }, [actionDay]);
+
   return (
     <div className="employee-clock card">
       <div className="employee-clock__top">NGÀY GIỜ: {clockText}</div>
+      <div className={`employee-clock__status-banner employee-clock__status-banner--${statusBanner.level}`}>
+        <span className="employee-clock__status-dot" />
+        <span>{statusBanner.text}</span>
+      </div>
+      {warnings.length > 0 && (
+        <div className="employee-clock__warnings">
+          {warnings.map((w) => (
+            <span key={w} className="employee-clock__warning-tag">⚠ {warningLabel(w)}</span>
+          ))}
+        </div>
+      )}
       <div className="employee-clock__layout">
         <div className="employee-clock__calendar">
           <div className="employee-clock__month-nav">
@@ -257,8 +284,7 @@ export default function EmployeeToday() {
               ))}
             </tbody>
           </table>
-          {error && <p style={{ color: "var(--danger)", marginTop: 8 }}>{error}</p>}
-          {message && <p style={{ color: "var(--primary)", marginTop: 8 }}>{message}</p>}
+
         </div>
 
         <aside className="employee-clock__side">
@@ -269,7 +295,7 @@ export default function EmployeeToday() {
             {selectedDate !== todayVn && <p className="small">Đánh thẻ chỉ áp dụng cho ngày hôm nay ({todayVn}).</p>}
             <div className="employee-clock__action-row">
               <span>Lên ca: {actionDay?.checkInAt ? fmtTime(actionDay.checkInAt) : "--:--:--"}</span>
-              <button disabled={loading || Boolean(todayDay?.checkInAt) || Boolean(activeShiftDay)} onClick={() => post("/api/attendance/check-in")}>
+              <button disabled={loading || Boolean(todayDay?.checkInAt) || Boolean(activeShiftDay)} onClick={() => post("/api/attendance/check-in", undefined, "Đã lên ca thành công!")}>
                 ĐÁNH THẺ
               </button>
             </div>
@@ -277,7 +303,7 @@ export default function EmployeeToday() {
               <span>Xuống ca: {actionDay?.checkOutAt ? fmtTime(actionDay.checkOutAt) : "--:--:--"}</span>
               <button
                 disabled={loading || !Boolean(actionDay?.checkInAt) || Boolean(actionDay?.checkOutAt) || Boolean(openBreak)}
-                onClick={() => post("/api/attendance/check-out")}
+                onClick={() => post("/api/attendance/check-out", undefined, "Đã xuống ca thành công!")}
               >
                 ĐÁNH THẺ
               </button>
@@ -325,23 +351,33 @@ export default function EmployeeToday() {
 
           <section className="employee-clock__panel">
             <h4>NGHỈ GIỮA CA:</h4>
+            {!actionDay?.checkInAt && <p className="small" style={{ color: "var(--danger)" }}>Bạn chưa lên ca, không thể bắt đầu nghỉ.</p>}
+            {actionDay?.checkOutAt && <p className="small" style={{ color: "var(--danger)" }}>Bạn đã xuống ca, không thể bắt đầu nghỉ.</p>}
+            {openBreak && <p className="small" style={{ color: "var(--primary)" }}>Đang nghỉ {breakTypeLabel(openBreak.breakType)} từ {fmtTime(openBreak.startAt)} — bấm KẾT THÚC để hoàn tất.</p>}
+            {actionDay?.checkInAt && !actionDay?.checkOutAt && !openBreak && <p className="small" style={{ color: "var(--primary)" }}>Chọn loại nghỉ và bấm BẮT ĐẦU.</p>}
             <div className="employee-clock__break-row">
               <select value={breakType} onChange={(e) => setBreakType(e.target.value as typeof breakType)}>
-                <option value="WC_SMOKE">{breakTypeLabel("WC_SMOKE")}</option>
+                <option value="WC">{breakTypeLabel("WC")}</option>
+                <option value="SMOKE">{breakTypeLabel("SMOKE")}</option>
                 <option value="MEAL">{breakTypeLabel("MEAL")}</option>
                 <option value="OTHER">{breakTypeLabel("OTHER")}</option>
               </select>
               <button
-                disabled={loading || !Boolean(actionDay?.checkInAt) || Boolean(actionDay?.checkOutAt) || Boolean(openBreak)}
-                onClick={() => post("/api/attendance/breaks/start", { breakType })}
+                disabled={loading || !Boolean(actionDay?.checkInAt) || Boolean(actionDay?.checkOutAt)}
+                onClick={() => {
+                  if (openBreak) {
+                    showPopup(`Bạn đang nghỉ ${breakTypeLabel(openBreak.breakType)}, vui lòng kết thúc trước khi bắt đầu nghỉ khác.`, "error");
+                    return;
+                  }
+                  post("/api/attendance/breaks/start", { breakType }, `Bắt đầu ${breakTypeLabel(breakType)}`);
+                }}
               >
                 BẮT ĐẦU
               </button>
-              <button disabled={loading || !openBreak} className="secondary" onClick={() => post("/api/attendance/breaks/end")}>
+              <button disabled={loading || !openBreak} className="secondary" onClick={() => post("/api/attendance/breaks/end", undefined, "Đã kết thúc nghỉ!")}>
                 KẾT THÚC
               </button>
             </div>
-            {openBreak && <p className="small">Đang nghỉ từ {fmtTime(openBreak.startAt)}</p>}
           </section>
         </aside>
       </div>
@@ -359,6 +395,16 @@ export default function EmployeeToday() {
           <strong>Quy trình nghỉ phép:</strong> Bấm nút chọn ngày off, sau đó bấm vào các ngày trên lịch để chọn nhiều ngày và xác nhận báo off cùng lúc.
         </p>
       </div>
+
+      {popup && (
+        <div className="employee-clock__popup-overlay" onClick={() => setPopup(null)}>
+          <div className={`employee-clock__popup employee-clock__popup--${popup.type}`} onClick={(e) => e.stopPropagation()}>
+            <span className="employee-clock__popup-icon">{popup.type === "success" ? "✓" : "✕"}</span>
+            <p>{popup.text}</p>
+            <button className="secondary" type="button" onClick={() => setPopup(null)}>Đóng</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

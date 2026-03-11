@@ -63,8 +63,8 @@ export async function POST(request: NextRequest) {
       },
     });
   }).catch((e) => {
-    if (!(e instanceof Error)) throw e;
-    return e.message;
+    if (e instanceof Error && ["ALREADY_ATTENDED", "ALREADY_OFF", "USER_NOT_FOUND"].includes(e.message)) return e.message;
+    throw e;
   });
 
   if (result === "ALREADY_ATTENDED") return fail("Bạn đã check-in/check-out, không thể báo off", 409);

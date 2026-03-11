@@ -4,12 +4,12 @@ import ThemeToggle from "@/components/theme-toggle";
 import { roleLabel } from "@/lib/display-labels";
 
 type Props = {
-  fullName: string;
+  username: string;
   role: string;
   links: Array<{ href: string; label: string }>;
 };
 
-export default function DashboardShell({ fullName, role, links, children }: React.PropsWithChildren<Props>) {
+export default function DashboardShell({ username, role, links, children }: React.PropsWithChildren<Props>) {
   return (
     <div className="container">
       <div className="card">
@@ -17,7 +17,7 @@ export default function DashboardShell({ fullName, role, links, children }: Reac
           <div>
             <h2 style={{ margin: 0 }}>OA TD88 - Chấm công</h2>
             <p className="small" style={{ margin: "4px 0 0" }}>
-              {fullName} ({roleLabel(role)})
+              {username} ({roleLabel(role)})
             </p>
           </div>
           <div className="row">

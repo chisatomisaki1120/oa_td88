@@ -10,7 +10,7 @@ export default async function AdminPayrollPage() {
   if (!user) redirect("/login");
 
   return (
-    <DashboardShell fullName={user.fullName} role={user.role} links={ADMIN_NAV_LINKS}>
+    <DashboardShell username={user.username} role={user.role} links={ADMIN_NAV_LINKS}>
       <AdminPayroll />
     </DashboardShell>
   );

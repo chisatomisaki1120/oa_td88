@@ -8,7 +8,8 @@ import { requireRoleRequest } from "@/lib/rbac";
 import { TIME_REGEX } from "@/lib/constants";
 
 const breakPolicySchema = z.object({
-  wcSmoke: z.object({ maxCount: z.number().int().min(0), maxMinutesEach: z.number().int().min(0) }),
+  wc: z.object({ maxCount: z.number().int().min(0), maxMinutesEach: z.number().int().min(0) }),
+  smoke: z.object({ maxCount: z.number().int().min(0), maxMinutesEach: z.number().int().min(0) }),
   meal: z.object({ maxCount: z.number().int().min(0), maxMinutesEach: z.number().int().min(0) }),
 });
 

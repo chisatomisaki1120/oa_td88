@@ -208,8 +208,8 @@ export default function AccountProfile() {
 
         <button type="submit">Lưu thay đổi</button>
       </form>
-      {message && <p style={{ color: "#047857" }}>{message}</p>}
-      {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
+      {message && <p style={{ color: "var(--primary)" }}>{message}</p>}
+      {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
     </div>
 
     {profile.stats && (
@@ -217,9 +217,9 @@ export default function AccountProfile() {
         <h3 style={{ marginTop: 0 }}>Tổng hợp tháng {profile.stats.month}</h3>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
           <div><span className="small">Đi làm đúng giờ</span><br /><strong>{profile.stats.presentDays}</strong> ngày</div>
-          <div><span className="small">Đi muộn</span><br /><strong style={{ color: "#b91c1c" }}>{profile.stats.lateDays}</strong> ngày</div>
+          <div><span className="small">Đi muộn</span><br /><strong style={{ color: "var(--danger)" }}>{profile.stats.lateDays}</strong> ngày</div>
           <div><span className="small">Về sớm</span><br /><strong>{profile.stats.earlyLeaveDays}</strong> ngày</div>
-          <div><span className="small">Vắng mặt</span><br /><strong style={{ color: "#b91c1c" }}>{profile.stats.absentDays}</strong> ngày</div>
+          <div><span className="small">Vắng mặt</span><br /><strong style={{ color: "var(--danger)" }}>{profile.stats.absentDays}</strong> ngày</div>
           <div><span className="small">Nghỉ phép</span><br /><strong>{profile.stats.offDays}</strong> / {profile.stats.allowedOffDaysPerMonth} ngày</div>
           <div><span className="small">Nghỉ trừ lương</span><br /><strong style={{ color: profile.stats.deductedDays > 0 ? "#b91c1c" : undefined }}>{profile.stats.deductedDays}</strong> ngày</div>
           <div><span className="small">Tổng giờ làm</span><br /><strong>{Math.floor(profile.stats.totalWorkedMinutes / 60)}h{profile.stats.totalWorkedMinutes % 60}p</strong></div>

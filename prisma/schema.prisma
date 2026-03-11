@@ -22,7 +22,8 @@ enum AttendanceStatus {
 }
 
 enum BreakType {
-  WC_SMOKE
+  WC
+  SMOKE
   MEAL
   OTHER
 }
@@ -45,7 +46,7 @@ model User {
   workEndTime       String?
   lateGraceMinutes  Int                     @default(5)
   earlyLeaveGraceMinutes Int                @default(5)
-  breakPolicyJson   String                  @default("{\"wcSmoke\":{\"maxCount\":3,\"maxMinutesEach\":10},\"meal\":{\"maxCount\":2,\"maxMinutesEach\":40}}")
+  breakPolicyJson   String                  @default("{\"wc\":{\"maxCount\":3,\"maxMinutesEach\":10},\"smoke\":{\"maxCount\":3,\"maxMinutesEach\":10},\"meal\":{\"maxCount\":2,\"maxMinutesEach\":40}}")
   workMode          WorkMode                @default(OFFLINE)
   allowedOffDaysPerMonth Int                @default(2)
   role              Role                    @default(EMPLOYEE)

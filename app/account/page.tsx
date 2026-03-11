@@ -10,7 +10,7 @@ export default async function AccountPage() {
   if (!user) redirect("/login");
 
   return (
-    <DashboardShell fullName={user.fullName} role={user.role} links={getNavLinks(user.role)}>
+    <DashboardShell username={user.username} role={user.role} links={getNavLinks(user.role)}>
       <AccountProfile />
       <SessionManager />
     </DashboardShell>

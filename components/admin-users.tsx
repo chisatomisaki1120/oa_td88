@@ -86,7 +86,7 @@ function UserDetailPanel({
 
   return (
     <div className="admin-users-inline-panel">
-      <h4 style={{ marginTop: 0 }}>Chi tiết chấm công: {user.fullName} ({user.username})</h4>
+      <h4 style={{ marginTop: 0 }}>Chi tiết chấm công: {user.username}</h4>
       <div className="row" style={{ marginBottom: 12 }}>
         <select value={month} onChange={(e) => onChangeMonth(e.target.value)}>
           {monthOptions.map((m) => (
@@ -289,7 +289,7 @@ export default function AdminUsers({ actorRole }: Props) {
   }
 
   async function deleteUser(user: User) {
-    const confirmed = window.confirm(`Xóa tài khoản "${user.fullName} (${user.username})"?`);
+    const confirmed = window.confirm(`Xóa tài khoản "${user.username}"?`);
     if (!confirmed) return;
     try {
       await apiJson(`/api/admin/users/${user.id}`, {
@@ -432,7 +432,7 @@ export default function AdminUsers({ actorRole }: Props) {
                       <td colSpan={8}>
                         <div className="admin-users-inline-panel">
                             <section>
-                              <h4 style={{ marginTop: 0 }}>Chỉnh tài khoản: {u.fullName}</h4>
+                              <h4 style={{ marginTop: 0 }}>Chỉnh tài khoản: {u.username}</h4>
                               <div className="row">
                                 <input value={editForm.fullName} onChange={(e) => setEditForm((f) => ({ ...f, fullName: e.target.value }))} placeholder="Họ tên" />
                                 <input value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} placeholder="Thư điện tử" />

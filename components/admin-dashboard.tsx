@@ -144,8 +144,8 @@ function BarChart({ data, maxVal, month }: { data: DashboardData["month"]["daily
         </div>
       </div>
       <div className="dash-chart-legend">
-        <span><span className="legend-dot" style={{ background: "#14b8a6" }} /> Đi làm</span>
-        <span><span className="legend-dot" style={{ background: "#ef4444" }} /> Đi muộn</span>
+        <span><span className="legend-dot" style={{ background: "var(--primary)" }} /> Đi làm</span>
+        <span><span className="legend-dot" style={{ background: "var(--danger)" }} /> Đi muộn</span>
       </div>
       {selectedData && (
         <div className="chart-day-detail">

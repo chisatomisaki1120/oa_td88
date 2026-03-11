@@ -52,6 +52,16 @@ export async function GET(request: NextRequest) {
             department: true,
           },
         },
+        breakSessions: {
+          select: {
+            id: true,
+            breakType: true,
+            startAt: true,
+            endAt: true,
+            durationMinutesComputed: true,
+          },
+          orderBy: { startAt: "asc" },
+        },
       },
       orderBy: [{ workDate: "desc" }, { createdAt: "desc" }],
       take,

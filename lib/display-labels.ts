@@ -33,7 +33,7 @@ export function attendanceStatusLabel(status: string) {
     case "ABSENT":
       return "Vắng mặt";
     case "INCOMPLETE":
-      return "Chưa đủ dữ liệu";
+      return "Đang làm";
     case "OFF":
       return "Nghỉ";
     default:
@@ -43,8 +43,10 @@ export function attendanceStatusLabel(status: string) {
 
 export function breakTypeLabel(type: string) {
   switch (type) {
-    case "WC_SMOKE":
-      return "Vệ sinh/Hút thuốc";
+    case "WC":
+      return "Vệ sinh";
+    case "SMOKE":
+      return "Hút thuốc";
     case "MEAL":
       return "Ăn cơm";
     case "OTHER":
@@ -56,12 +58,16 @@ export function breakTypeLabel(type: string) {
 
 export function warningLabel(warning: string) {
   switch (warning) {
-    case "WC_SMOKE_COUNT_EXCEEDED":
-      return "Vượt số lần vệ sinh/hút thuốc";
+    case "WC_COUNT_EXCEEDED":
+      return "Vượt số lần vệ sinh";
+    case "SMOKE_COUNT_EXCEEDED":
+      return "Vượt số lần hút thuốc";
     case "MEAL_COUNT_EXCEEDED":
       return "Vượt số lần ăn";
-    case "WC_SMOKE_DURATION_EXCEEDED":
-      return "Vượt thời gian vệ sinh/hút thuốc";
+    case "WC_DURATION_EXCEEDED":
+      return "Vượt thời gian vệ sinh";
+    case "SMOKE_DURATION_EXCEEDED":
+      return "Vượt thời gian hút thuốc";
     case "MEAL_DURATION_EXCEEDED":
       return "Vượt thời gian ăn";
     case "EARLY_LEAVE":
