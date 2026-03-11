@@ -34,7 +34,7 @@ function fmtDateRange(dates: string[]) {
 
 export default function AdminLeaveRequests() {
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
-  const [filterStatus, setFilterStatus] = useState("PENDING");
+  const [filterStatus, setFilterStatus] = useState("ALL");
   const [filterYear, setFilterYear] = useState(new Date().getFullYear());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -87,10 +87,10 @@ export default function AdminLeaveRequests() {
 
       <div className="row" style={{ marginBottom: 12, gap: 8 }}>
         <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+          <option value="ALL">Tất cả</option>
           <option value="PENDING">Chờ duyệt</option>
           <option value="APPROVED">Đã duyệt</option>
           <option value="REJECTED">Từ chối</option>
-          <option value="ALL">Tất cả</option>
         </select>
         <select value={filterYear} onChange={(e) => setFilterYear(Number(e.target.value))}>
           {[0, 1, 2].map((d) => {
@@ -109,11 +109,14 @@ export default function AdminLeaveRequests() {
 
       {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
 
-      {pending.length > 0 && (
-        <div className="card" style={{ marginBottom: 16, borderColor: "var(--primary)" }}>
-          <h3 style={{ margin: "0 0 8px", fontSize: 15 }}>
-            📋 Đơn chờ duyệt ({pending.length})
-          </h3>
+      <div className="card" style={{ marginBottom: 16, borderColor: "var(--primary)" }}>
+        <h3 style={{ margin: "0 0 8px", fontSize: 15 }}>
+          📋 Đơn chờ duyệt ({pending.length})
+        </h3>
+        {pending.length === 0 && !loading && (
+          <p className="small" style={{ textAlign: "center", padding: 16 }}>Không có đơn chờ duyệt.</p>
+        )}
+        {pending.length > 0 && (
           <table>
             <thead>
               <tr>
@@ -190,12 +193,15 @@ export default function AdminLeaveRequests() {
               ))}
             </tbody>
           </table>
-        </div>
-      )}
+        )}
+      </div>
 
-      {reviewed.length > 0 && (
-        <div className="card">
-          <h3 style={{ margin: "0 0 8px", fontSize: 15 }}>Lịch sử duyệt</h3>
+      <div className="card">
+        <h3 style={{ margin: "0 0 8px", fontSize: 15 }}>Lịch sử duyệt ({reviewed.length})</h3>
+        {reviewed.length === 0 && !loading && (
+          <p className="small" style={{ textAlign: "center", padding: 16 }}>Không có lịch sử duyệt.</p>
+        )}
+        {reviewed.length > 0 && (
           <table>
             <thead>
               <tr>
@@ -229,14 +235,8 @@ export default function AdminLeaveRequests() {
               ))}
             </tbody>
           </table>
-        </div>
-      )}
-
-      {requests.length === 0 && !loading && (
-        <p className="small" style={{ textAlign: "center", padding: 24 }}>
-          Không có đơn nghỉ phép nào.
-        </p>
-      )}
+        )}
+      </div>
     </div>
   );
 }

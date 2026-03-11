@@ -82,9 +82,9 @@ export async function POST(request: NextRequest) {
 
   const existingUsers = await prisma.user.findMany({
     where: { deletedAt: null },
-    select: { id: true, username: true },
+    select: { id: true, username: true, role: true },
   });
-  const existingUserMap = new Map(existingUsers.map((u) => [u.username, u.id]));
+  const existingUserMap = new Map(existingUsers.map((u) => [u.username, u]));
 
   // Load active shifts for matching by name
   const activeShifts = await prisma.shift.findMany({ where: { isActive: true } });
@@ -189,7 +189,8 @@ export async function POST(request: NextRequest) {
     if (earlyLeaveStr && (isNaN(earlyLeaveGraceMinutes) || earlyLeaveGraceMinutes < 0 || earlyLeaveGraceMinutes > 180)) { preview.error = "Phút về sớm không hợp lệ (0-180)"; previews.push(preview); continue; }
     if (offDaysStr && (isNaN(allowedOffDaysPerMonth) || allowedOffDaysPerMonth < 0 || allowedOffDaysPerMonth > 31)) { preview.error = "Ngày nghỉ/tháng không hợp lệ (0-31)"; previews.push(preview); continue; }
 
-    const isExisting = existingUserMap.has(username);
+    const existingUser = existingUserMap.get(username) ?? null;
+    const isExisting = Boolean(existingUser);
 
     // For new users: password required (default = username). For existing: only hash if provided.
     const finalPassword = password || (isExisting ? "" : username);
@@ -198,9 +199,12 @@ export async function POST(request: NextRequest) {
     if (shiftName && !matchedShift) { preview.error = `Không tìm thấy ca "${shiftName}"`; previews.push(preview); continue; }
 
     const role = VALID_ROLES.includes(normalizedRole as typeof VALID_ROLES[number]) ? (normalizedRole as Role) : Role.EMPLOYEE;
-    // Non-super admins cannot create SUPER_ADMIN
+    // Non-super admins cannot create or modify SUPER_ADMIN records
     if (role === Role.SUPER_ADMIN && user.role !== "SUPER_ADMIN") {
       preview.error = "Không có quyền tạo SUPER_ADMIN"; previews.push(preview); continue;
+    }
+    if (existingUser?.role === Role.SUPER_ADMIN && user.role !== "SUPER_ADMIN") {
+      preview.error = "Không có quyền cập nhật SUPER_ADMIN"; previews.push(preview); continue;
     }
 
     seenUsernames.add(username);
@@ -209,7 +213,7 @@ export async function POST(request: NextRequest) {
 
     if (isExisting) {
       toUpdate.push({
-        existingUserId: existingUserMap.get(username)!,
+        existingUserId: existingUser!.id,
         fullName,
         passwordHash: password ? await hashPassword(password) : null,
         role,
@@ -256,55 +260,59 @@ export async function POST(request: NextRequest) {
   // Commit: create/update users
   if (toCreate.length === 0 && toUpdate.length === 0) return fail("Không có nhân viên hợp lệ để import", 400);
 
-  let created = 0;
-  for (const userData of toCreate) {
-    const { shiftId, ...userFields } = userData;
-    const newUser = await prisma.user.create({ data: userFields });
-    if (shiftId) {
-      await prisma.employeeShiftAssignment.create({
-        data: {
-          userId: newUser.id,
-          shiftId,
-          effectiveFrom: new Date(),
-        },
-      });
+  const now = new Date();
+  const { created, updated } = await prisma.$transaction(async (tx) => {
+    let created = 0;
+    for (const userData of toCreate) {
+      const { shiftId, ...userFields } = userData;
+      const newUser = await tx.user.create({ data: userFields });
+      if (shiftId) {
+        await tx.employeeShiftAssignment.create({
+          data: {
+            userId: newUser.id,
+            shiftId,
+            effectiveFrom: now,
+          },
+        });
+      }
+      created++;
     }
-    created++;
-  }
 
-  let updated = 0;
-  for (const userData of toUpdate) {
-    const { existingUserId, shiftId, passwordHash, ...fields } = userData;
-    const updateData: Record<string, unknown> = { ...fields };
-    if (passwordHash) updateData.passwordHash = passwordHash;
+    let updated = 0;
+    for (const userData of toUpdate) {
+      const { existingUserId, shiftId, passwordHash, ...fields } = userData;
+      const updateData: Record<string, unknown> = { ...fields };
+      if (passwordHash) updateData.passwordHash = passwordHash;
 
-    await prisma.user.update({ where: { id: existingUserId }, data: updateData });
+      await tx.user.update({ where: { id: existingUserId }, data: updateData });
 
-    if (shiftId) {
-      // Close current open assignment if any, then create new
-      await prisma.employeeShiftAssignment.updateMany({
-        where: { userId: existingUserId, effectiveTo: null },
-        data: { effectiveTo: new Date() },
-      });
-      await prisma.employeeShiftAssignment.create({
-        data: {
-          userId: existingUserId,
-          shiftId,
-          effectiveFrom: new Date(),
-        },
-      });
+      if (shiftId) {
+        await tx.employeeShiftAssignment.updateMany({
+          where: { userId: existingUserId, effectiveTo: null },
+          data: { effectiveTo: now },
+        });
+        await tx.employeeShiftAssignment.create({
+          data: {
+            userId: existingUserId,
+            shiftId,
+            effectiveFrom: now,
+          },
+        });
+      }
+      updated++;
     }
-    updated++;
-  }
 
-  await prisma.auditLog.create({
-    data: {
-      actorUserId: user.id,
-      action: "IMPORT_USERS",
-      entityType: "User",
-      entityId: "bulk",
-      afterJson: JSON.stringify({ created, updated, total: rawRows.length }),
-    },
+    await tx.auditLog.create({
+      data: {
+        actorUserId: user.id,
+        action: "IMPORT_USERS",
+        entityType: "User",
+        entityId: "bulk",
+        afterJson: JSON.stringify({ created, updated, total: rawRows.length }),
+      },
+    });
+
+    return { created, updated };
   });
 
   return ok({ mode: "commit", created, updated, total: rawRows.length });

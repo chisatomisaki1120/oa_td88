@@ -117,7 +117,7 @@ function main() {
     console.warn("Warning: could not sync schema. Run 'npx prisma db push --config prisma.config.ts' manually.");
   }
 
-  // Migrate old WC_SMOKE data if present
+  // Migrate old WC_SMOKE data to separate WC/SMOKE if present
   try {
     const migrateDb = new Database(dbPath);
     const hasOld = migrateDb.prepare("SELECT 1 FROM BreakSession WHERE breakType = 'WC_SMOKE' LIMIT 1").get();
@@ -125,8 +125,8 @@ function main() {
       const r = migrateDb.prepare("UPDATE BreakSession SET breakType = 'WC' WHERE breakType = 'WC_SMOKE'").run();
       console.log(`Migrated ${r.changes} WC_SMOKE → WC break sessions`);
     }
-    const r2 = migrateDb.prepare("UPDATE User SET breakPolicyJson = REPLACE(breakPolicyJson, '\"wcSmoke\"', '\"wc\"') WHERE breakPolicyJson LIKE '%wcSmoke%'").run();
-    const r3 = migrateDb.prepare("UPDATE Shift SET breakPolicyJson = REPLACE(breakPolicyJson, '\"wcSmoke\"', '\"wc\"') WHERE breakPolicyJson LIKE '%wcSmoke%'").run();
+    const r2 = migrateDb.prepare("UPDATE User SET breakPolicyJson = REPLACE(breakPolicyJson, '\"wcSmoke\"', '\"wc\"') WHERE breakPolicyJson LIKE '%\"wcSmoke\"%'").run();
+    const r3 = migrateDb.prepare("UPDATE Shift SET breakPolicyJson = REPLACE(breakPolicyJson, '\"wcSmoke\"', '\"wc\"') WHERE breakPolicyJson LIKE '%\"wcSmoke\"%'").run();
     if (r2.changes || r3.changes) console.log(`Migrated breakPolicyJson: ${r2.changes} users, ${r3.changes} shifts`);
     migrateDb.close();
   } catch (err) {

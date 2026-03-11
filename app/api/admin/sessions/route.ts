@@ -11,7 +11,10 @@ export async function GET(request: NextRequest) {
   if (!user) return fail("Unauthorized", 401);
 
   const sessions = await prisma.authSession.findMany({
-    where: { expiresAt: { gt: new Date() } },
+    where: {
+      expiresAt: { gt: new Date() },
+      ...(user.role === Role.SUPER_ADMIN ? {} : { user: { role: { not: Role.SUPER_ADMIN } } }),
+    },
     select: {
       id: true,
       ipAddress: true,

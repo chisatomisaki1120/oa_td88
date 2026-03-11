@@ -8,12 +8,12 @@ async function main() {
 
   // Also update old breakPolicyJson formats
   const users = await prisma.$executeRawUnsafe(
-    `UPDATE User SET breakPolicyJson = REPLACE(REPLACE(breakPolicyJson, '"wcSmoke"', '"wc"'), '"wcSmoke"', '"wc"') WHERE breakPolicyJson LIKE '%wcSmoke%'`
+    `UPDATE User SET breakPolicyJson = REPLACE(breakPolicyJson, '"wcSmoke"', '"wc"') WHERE breakPolicyJson LIKE '%"wcSmoke"%'`
   );
   console.log(`Updated ${users} user breakPolicyJson`);
 
   const shifts = await prisma.$executeRawUnsafe(
-    `UPDATE Shift SET breakPolicyJson = REPLACE(REPLACE(breakPolicyJson, '"wcSmoke"', '"wc"'), '"wcSmoke"', '"wc"') WHERE breakPolicyJson LIKE '%wcSmoke%'`
+    `UPDATE Shift SET breakPolicyJson = REPLACE(breakPolicyJson, '"wcSmoke"', '"wc"') WHERE breakPolicyJson LIKE '%"wcSmoke"%'`
   );
   console.log(`Updated ${shifts} shift breakPolicyJson`);
 

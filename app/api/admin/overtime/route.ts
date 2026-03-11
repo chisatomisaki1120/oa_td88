@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
   });
 
   const byUser = new Map<string, { workedDays: number; totalMinutes: number; offDaysPaid: number; offDaysDeducted: number; overtimeMinutes: number }>();
+  const userMap = new Map(users.map((u) => [u.id, u]));
 
   for (const u of users) {
     byUser.set(u.id, { workedDays: 0, totalMinutes: 0, offDaysPaid: 0, offDaysDeducted: 0, overtimeMinutes: 0 });
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest) {
     if (worked > 0 && !a.isOffDay) {
       s.workedDays++;
       s.totalMinutes += worked;
-      const u = users.find((u) => u.id === a.userId);
+      const u = userMap.get(a.userId);
       if (u) {
         const startMin = u.workStartTime ? parseHHMM(u.workStartTime) : 480;
         const endMin = u.workEndTime ? parseHHMM(u.workEndTime) : 1020;

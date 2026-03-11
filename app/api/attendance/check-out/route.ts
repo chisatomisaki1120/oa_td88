@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { fail, ok } from "@/lib/api";
 import { getSessionUserFromRequest } from "@/lib/auth";
-import { getActiveShiftForUser, getOrCreateCurrentShiftAttendance, recalculateAttendanceDay } from "@/lib/attendance";
+import { getActiveShiftForUser, getOrCreateCurrentShiftAttendance, getScheduleReferenceForAttendance, recalculateAttendanceDay } from "@/lib/attendance";
 import { prisma } from "@/lib/prisma";
 import { validateCsrf } from "@/lib/csrf";
 import { consumeApiRateLimit } from "@/lib/rate-limit";
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       data: { checkOutAt: new Date(), updatedBy: user.id },
     });
 
-    const shift = await getActiveShiftForUser(user.id, new Date(), tx);
+    const shift = await getActiveShiftForUser(user.id, getScheduleReferenceForAttendance(updated), tx);
     return recalculateAttendanceDay(tx, updated, shift);
   }).catch((e) => {
     if (!(e instanceof Error)) throw e;

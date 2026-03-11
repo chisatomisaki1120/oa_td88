@@ -59,13 +59,13 @@ export function breakTypeLabel(type: string) {
 export function warningLabel(warning: string) {
   switch (warning) {
     case "WC_COUNT_EXCEEDED":
-      return "Vượt số lần vệ sinh";
+      return "Vượt số lần VS";
     case "SMOKE_COUNT_EXCEEDED":
       return "Vượt số lần hút thuốc";
     case "MEAL_COUNT_EXCEEDED":
       return "Vượt số lần ăn";
     case "WC_DURATION_EXCEEDED":
-      return "Vượt thời gian vệ sinh";
+      return "Vượt thời gian VS";
     case "SMOKE_DURATION_EXCEEDED":
       return "Vượt thời gian hút thuốc";
     case "MEAL_DURATION_EXCEEDED":

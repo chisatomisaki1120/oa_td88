@@ -111,8 +111,8 @@ export default function EmployeeToday() {
       const prevLast = new Date(y, m - 1, 0);
       const from = `${prevLast.getFullYear()}-${String(prevLast.getMonth() + 1).padStart(2, "0")}-${String(prevLast.getDate()).padStart(2, "0")}`;
       const to = `${targetMonth}-${String(daysInMonth).padStart(2, "0")}`;
-      const data = await apiJson<Day[]>(`/api/attendance/me?from=${from}&to=${to}`);
-      setRows(data);
+      const data = await apiJson<{ items: Day[]; pendingPreviousShift: { id: string; workDate: string; checkInAt: string | null; checkOutAt: string | null } | null }>(`/api/attendance/me?from=${from}&to=${to}`);
+      setRows(data.items);
     } catch (err) {
       showPopup(err instanceof Error ? err.message : "Không tải được dữ liệu", "error");
     }

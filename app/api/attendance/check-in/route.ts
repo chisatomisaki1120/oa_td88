@@ -23,15 +23,15 @@ export async function POST(request: NextRequest) {
       if (today.isOffDay) throw new Error("OFF_DAY");
 
       const shift = await getActiveShiftForUser(user.id, now, tx);
-      const checkInStatus = computeCheckInStatus(shift, now);
+      const status = computeCheckInStatus(shift, now);
 
       return tx.attendanceDay.update({
         where: { id: today.id },
         data: {
           checkInAt: now,
-          status: AttendanceStatus.INCOMPLETE,
+          status,
           updatedBy: user.id,
-          warningFlagsJson: checkInStatus === AttendanceStatus.LATE ? JSON.stringify(["LATE"]) : "[]",
+          warningFlagsJson: status === AttendanceStatus.LATE ? JSON.stringify(["LATE"]) : "[]",
         },
         include: { breakSessions: true },
       });

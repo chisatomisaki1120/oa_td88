@@ -3,6 +3,7 @@ import { fail, ok } from "@/lib/api";
 import { getSessionUserFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { vnDateString } from "@/lib/time";
+import { getPendingPreviousOpenAttendance } from "@/lib/attendance";
 
 function parseDate(input: string | null, fallback: string) {
   if (!input) return fallback;
@@ -19,7 +20,8 @@ export async function GET(request: NextRequest) {
   const from = parseDate(searchParams.get("from"), `${today.slice(0, 7)}-01`);
   const to = parseDate(searchParams.get("to"), today);
 
-  const items = await prisma.attendanceDay.findMany({
+  const [items, pendingPreviousShift] = await Promise.all([
+    prisma.attendanceDay.findMany({
     where: {
       userId: user.id,
       workDate: {
@@ -50,9 +52,28 @@ export async function GET(request: NextRequest) {
       },
     },
     orderBy: { workDate: "desc" },
-  });
+  }),
+    prisma.$transaction((tx) =>
+      getPendingPreviousOpenAttendance(tx, user.id).then((item) =>
+        item
+          ? {
+              id: item.id,
+              workDate: item.workDate,
+              checkInAt: item.checkInAt,
+              checkOutAt: item.checkOutAt,
+            }
+          : null,
+      ),
+    ),
+  ]);
 
-  return ok(items, {
-    headers: { "Cache-Control": "no-store" },
-  });
+  return ok(
+    {
+      items,
+      pendingPreviousShift,
+    },
+    {
+      headers: { "Cache-Control": "no-store" },
+    },
+  );
 }

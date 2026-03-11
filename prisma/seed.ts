@@ -27,7 +27,8 @@ async function main() {
       lateGraceMinutes: 5,
       earlyLeaveGraceMinutes: 5,
       breakPolicyJson: JSON.stringify({
-        wc: { maxCount: 3, maxMinutesEach: 10 }, smoke: { maxCount: 3, maxMinutesEach: 10 },
+        wc: { maxCount: 3, maxMinutesEach: 10 },
+        smoke: { maxCount: 2, maxMinutesEach: 10 },
         meal: { maxCount: 2, maxMinutesEach: 40 },
       }),
       isActive: true,
@@ -54,7 +55,8 @@ async function main() {
         lateGraceMinutes: 5,
         earlyLeaveGraceMinutes: 5,
         breakPolicyJson: JSON.stringify({
-          wc: { maxCount: 3, maxMinutesEach: 10 }, smoke: { maxCount: 3, maxMinutesEach: 10 },
+          wc: { maxCount: 3, maxMinutesEach: 10 },
+          smoke: { maxCount: 2, maxMinutesEach: 10 },
           meal: { maxCount: 2, maxMinutesEach: 40 },
         }),
         workMode: WorkMode.OFFLINE,
@@ -72,7 +74,8 @@ async function main() {
         lateGraceMinutes: 5,
         earlyLeaveGraceMinutes: 5,
         breakPolicyJson: JSON.stringify({
-          wc: { maxCount: 3, maxMinutesEach: 10 }, smoke: { maxCount: 3, maxMinutesEach: 10 },
+          wc: { maxCount: 3, maxMinutesEach: 10 },
+          smoke: { maxCount: 2, maxMinutesEach: 10 },
           meal: { maxCount: 2, maxMinutesEach: 40 },
         }),
         workMode: WorkMode.OFFLINE,

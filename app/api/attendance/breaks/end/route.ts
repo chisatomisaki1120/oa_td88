@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { fail, ok } from "@/lib/api";
 import { getSessionUserFromRequest } from "@/lib/auth";
-import { getActiveShiftForUser, getOrCreateCurrentShiftAttendance, recalculateAttendanceDay } from "@/lib/attendance";
+import { getActiveShiftForUser, getOrCreateCurrentShiftAttendance, getScheduleReferenceForAttendance, recalculateAttendanceDay } from "@/lib/attendance";
 import { prisma } from "@/lib/prisma";
 import { validateCsrf } from "@/lib/csrf";
 import { minutesBetween } from "@/lib/time";
@@ -36,15 +36,19 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const shift = await getActiveShiftForUser(user.id, new Date(), tx);
-    return recalculateAttendanceDay(tx, today, shift);
+    const updatedAttendance = await tx.attendanceDay.findUnique({ where: { id: today.id } });
+    if (!updatedAttendance) throw new Error("ATTENDANCE_NOT_FOUND");
+
+    const shift = await getActiveShiftForUser(user.id, getScheduleReferenceForAttendance(updatedAttendance), tx);
+    return recalculateAttendanceDay(tx, updatedAttendance, shift);
   }).catch((e) => {
-    if (e instanceof Error && (e.message === "NO_CHECKIN" || e.message === "NO_OPEN_BREAK")) return e.message;
+    if (e instanceof Error && ["NO_CHECKIN", "NO_OPEN_BREAK", "ATTENDANCE_NOT_FOUND"].includes(e.message)) return e.message;
     throw e;
   });
 
   if (result === "NO_CHECKIN") return fail("Bạn chưa check-in", 409);
   if (result === "NO_OPEN_BREAK") return fail("Không có phiên nghỉ đang mở", 409);
+  if (result === "ATTENDANCE_NOT_FOUND") return fail("Không tìm thấy bản ghi công", 404);
 
   return ok(result);
 }

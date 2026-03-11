@@ -1,6 +1,6 @@
 import { AttendanceDay, AttendanceStatus, BreakSession, BreakType, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { minutesBetween, parseHHMM, shiftWorkDate, vnDateString, vnMinuteOfDay } from "@/lib/time";
+import { minutesBetween, parseHHMM, shiftWorkDate, vnDateString, vnMinuteOfDay, parseWorkDateToUtc } from "@/lib/time";
 
 export type BreakPolicy = {
   wc: { maxCount: number; maxMinutesEach: number };
@@ -18,7 +18,7 @@ export type WorkSchedule = {
 
 export const DEFAULT_BREAK_POLICY: BreakPolicy = {
   wc: { maxCount: 3, maxMinutesEach: 10 },
-  smoke: { maxCount: 3, maxMinutesEach: 10 },
+  smoke: { maxCount: 2, maxMinutesEach: 10 },
   meal: { maxCount: 2, maxMinutesEach: 40 },
 };
 
@@ -80,12 +80,7 @@ export async function getActiveShiftForUser(userId: string, atDate: Date = new D
 function getBreakPolicy(schedule: WorkSchedule | null): BreakPolicy {
   if (!schedule) return DEFAULT_BREAK_POLICY;
   try {
-    const raw = JSON.parse(schedule.breakPolicyJson);
-    return {
-      wc: raw.wc ?? raw.wcSmoke ?? DEFAULT_BREAK_POLICY.wc,
-      smoke: raw.smoke ?? raw.wcSmoke ?? DEFAULT_BREAK_POLICY.smoke,
-      meal: raw.meal ?? DEFAULT_BREAK_POLICY.meal,
-    };
+    return JSON.parse(schedule.breakPolicyJson) as BreakPolicy;
   } catch {
     return DEFAULT_BREAK_POLICY;
   }
@@ -93,18 +88,18 @@ function getBreakPolicy(schedule: WorkSchedule | null): BreakPolicy {
 
 function calculateWarnings(breaks: BreakSession[], policy: BreakPolicy): string[] {
   const warnings: string[] = [];
-  const wc = breaks.filter((b) => b.breakType === BreakType.WC);
-  const smoke = breaks.filter((b) => b.breakType === BreakType.SMOKE);
+  const wcs = breaks.filter((b) => b.breakType === BreakType.WC);
+  const smokes = breaks.filter((b) => b.breakType === BreakType.SMOKE);
   const meals = breaks.filter((b) => b.breakType === BreakType.MEAL);
 
-  if (wc.length > policy.wc.maxCount) warnings.push("WC_COUNT_EXCEEDED");
-  if (smoke.length > policy.smoke.maxCount) warnings.push("SMOKE_COUNT_EXCEEDED");
+  if (wcs.length > policy.wc.maxCount) warnings.push("WC_COUNT_EXCEEDED");
+  if (smokes.length > policy.smoke.maxCount) warnings.push("SMOKE_COUNT_EXCEEDED");
   if (meals.length > policy.meal.maxCount) warnings.push("MEAL_COUNT_EXCEEDED");
 
-  if (wc.some((b) => (b.durationMinutesComputed ?? 0) > policy.wc.maxMinutesEach)) {
+  if (wcs.some((b) => (b.durationMinutesComputed ?? 0) > policy.wc.maxMinutesEach)) {
     warnings.push("WC_DURATION_EXCEEDED");
   }
-  if (smoke.some((b) => (b.durationMinutesComputed ?? 0) > policy.smoke.maxMinutesEach)) {
+  if (smokes.some((b) => (b.durationMinutesComputed ?? 0) > policy.smoke.maxMinutesEach)) {
     warnings.push("SMOKE_DURATION_EXCEEDED");
   }
   if (meals.some((b) => (b.durationMinutesComputed ?? 0) > policy.meal.maxMinutesEach)) {
@@ -188,6 +183,13 @@ function withEarlyLeaveWarning(
   return status;
 }
 
+export function getScheduleReferenceForAttendance(attendanceDay: Pick<AttendanceDay, "workDate" | "checkInAt">): Date {
+  if (attendanceDay.checkInAt) return attendanceDay.checkInAt;
+  const noonUtc = parseWorkDateToUtc(attendanceDay.workDate);
+  noonUtc.setUTCHours(12, 0, 0, 0);
+  return noonUtc;
+}
+
 export async function recalculateAttendanceDay(
   tx: Prisma.TransactionClient,
   attendanceDay: AttendanceDay,
@@ -252,6 +254,28 @@ export async function getOrCreateAttendanceByWorkDate(tx: Prisma.TransactionClie
 
 export async function getOrCreateTodayAttendance(tx: Prisma.TransactionClient, userId: string): Promise<AttendanceDay> {
   return getOrCreateAttendanceByWorkDate(tx, userId, vnDateString());
+}
+
+export async function getPendingPreviousOpenAttendance(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  now: Date = new Date(),
+): Promise<AttendanceDay | null> {
+  const schedule = await getActiveShiftForUser(userId, now, tx);
+  const resolvedWorkDate = resolveWorkDateForShiftMoment(schedule, now);
+
+  const openAttendance = await tx.attendanceDay.findFirst({
+    where: {
+      userId,
+      checkInAt: { not: null },
+      checkOutAt: null,
+    },
+    orderBy: { workDate: "desc" },
+  });
+
+  if (!openAttendance) return null;
+  if (openAttendance.workDate === resolvedWorkDate) return null;
+  return openAttendance;
 }
 
 export async function getOrCreateCurrentShiftAttendance(
