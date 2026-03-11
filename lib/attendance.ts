@@ -248,18 +248,16 @@ export async function getOrCreateCurrentShiftAttendance(
   now: Date = new Date(),
   { forCheckout = false }: { forCheckout?: boolean } = {},
 ): Promise<AttendanceDay> {
-  const today = vnDateString(now);
-  const yesterday = shiftWorkDate(today, -1);
-
   const schedule = await getActiveShiftForUser(userId, now, tx);
   const resolvedWorkDate = resolveWorkDateForShiftMoment(schedule, now);
 
+  // Find any open attendance (checked in but not checked out) for this user.
+  // No date restriction — handles gaps like off-days between check-in and check-out.
   const openAttendance = await tx.attendanceDay.findFirst({
     where: {
       userId,
       checkInAt: { not: null },
       checkOutAt: null,
-      workDate: { in: [today, yesterday] },
     },
     orderBy: { workDate: "desc" },
   });
