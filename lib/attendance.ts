@@ -249,7 +249,12 @@ export async function getOrCreateTodayAttendance(tx: Prisma.TransactionClient, u
   return getOrCreateAttendanceByWorkDate(tx, userId, vnDateString());
 }
 
-export async function getOrCreateCurrentShiftAttendance(tx: Prisma.TransactionClient, userId: string, now: Date = new Date()): Promise<AttendanceDay> {
+export async function getOrCreateCurrentShiftAttendance(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  now: Date = new Date(),
+  { forCheckout = false }: { forCheckout?: boolean } = {},
+): Promise<AttendanceDay> {
   const today = vnDateString(now);
   const yesterday = shiftWorkDate(today, -1);
 
@@ -270,6 +275,10 @@ export async function getOrCreateCurrentShiftAttendance(tx: Prisma.TransactionCl
     // If the open attendance is from the current resolved work date, return it normally
     // (e.g. still within the same shift, or same-day re-check)
     if (openAttendance.workDate === resolvedWorkDate) return openAttendance;
+
+    // For checkout, always return the open attendance so it can be closed
+    // (night shift employees may check out after the resolved work date rolls over)
+    if (forCheckout) return openAttendance;
 
     // Previous shift still open — block and notify
     throw new Error("PREVIOUS_SHIFT_OPEN");

@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
   if (!rl.allowed) return fail(`Vui lòng thử lại sau ${rl.retryAfterSeconds}s`, 429);
 
   const result = await prisma.$transaction(async (tx) => {
-    const today = await getOrCreateCurrentShiftAttendance(tx, user.id, new Date());
+    const today = await getOrCreateCurrentShiftAttendance(tx, user.id, new Date(), { forCheckout: true });
     if (!(await assertMonthUnlocked(today.workDate, tx))) throw new Error("MONTH_LOCKED");
 
     if (!today.checkInAt) throw new Error("NO_CHECKIN");
