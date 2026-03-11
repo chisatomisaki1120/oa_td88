@@ -145,13 +145,6 @@ async function main() {
   const endMin = parseHHMM(shift.endTime);
   const overnight = endMin <= startMin;
 
-  // Check if month is locked
-  const closure = await prisma.monthlyClosure.findUnique({ where: { month: today.slice(0, 7) } });
-  if (closure && !closure.reopenedAt) {
-    console.log(`[auto-clock] Month ${today.slice(0, 7)} is locked. Skipping.`);
-    return;
-  }
-
   // Get or check today's attendance
   const existing = await prisma.attendanceDay.findUnique({
     where: { userId_workDate: { userId: user.id, workDate: today } },
@@ -179,7 +172,6 @@ async function main() {
             workDate: today,
             status: AttendanceStatus.INCOMPLETE,
             warningFlagsJson: "[]",
-            lockedMonth: false,
           },
         });
 

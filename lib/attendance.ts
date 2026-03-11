@@ -75,12 +75,6 @@ export async function getActiveShiftForUser(userId: string, atDate: Date = new D
   };
 }
 
-export async function assertMonthUnlocked(workDate: string, tx?: Prisma.TransactionClient): Promise<boolean> {
-  const db = tx ?? prisma;
-  const closure = await db.monthlyClosure.findUnique({ where: { month: workDate.slice(0, 7) } });
-  return !closure || Boolean(closure.reopenedAt);
-}
-
 function getBreakPolicy(schedule: WorkSchedule | null): BreakPolicy {
   if (!schedule) return DEFAULT_BREAK_POLICY;
   try {
@@ -240,7 +234,6 @@ export async function getOrCreateAttendanceByWorkDate(tx: Prisma.TransactionClie
       workDate,
       status: AttendanceStatus.INCOMPLETE,
       warningFlagsJson: "[]",
-      lockedMonth: false,
     },
   });
 }

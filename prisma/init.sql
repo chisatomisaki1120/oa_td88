@@ -49,7 +49,6 @@ CREATE TABLE "AttendanceDay" (
     "status" TEXT NOT NULL DEFAULT 'INCOMPLETE',
     "warningFlagsJson" TEXT NOT NULL DEFAULT '[]',
     "workedMinutes" INTEGER,
-    "lockedMonth" BOOLEAN NOT NULL DEFAULT false,
     "createdBy" TEXT,
     "updatedBy" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -67,21 +66,6 @@ CREATE TABLE "BreakSession" (
     "durationMinutesComputed" INTEGER,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "BreakSession_attendanceDayId_fkey" FOREIGN KEY ("attendanceDayId") REFERENCES "AttendanceDay" ("id") ON DELETE CASCADE ON UPDATE CASCADE
-);
-
--- CreateTable
-CREATE TABLE "MonthlyClosure" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "month" TEXT NOT NULL,
-    "closedAt" DATETIME NOT NULL,
-    "closedBy" TEXT NOT NULL,
-    "reopenedAt" DATETIME,
-    "reopenedBy" TEXT,
-    "note" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "MonthlyClosure_closedBy_fkey" FOREIGN KEY ("closedBy") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "MonthlyClosure_reopenedBy_fkey" FOREIGN KEY ("reopenedBy") REFERENCES "User" ("id") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
 -- CreateTable
@@ -118,9 +102,6 @@ CREATE UNIQUE INDEX "AttendanceDay_userId_workDate_key" ON "AttendanceDay"("user
 
 -- CreateIndex
 CREATE INDEX "BreakSession_attendanceDayId_startAt_idx" ON "BreakSession"("attendanceDayId", "startAt");
-
--- CreateIndex
-CREATE UNIQUE INDEX "MonthlyClosure_month_key" ON "MonthlyClosure"("month");
 
 -- CreateIndex
 CREATE INDEX "AuditLog_entityType_entityId_idx" ON "AuditLog"("entityType", "entityId");

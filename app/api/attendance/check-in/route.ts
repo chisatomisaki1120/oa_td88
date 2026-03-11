@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { AttendanceStatus } from "@prisma/client";
 import { fail, ok } from "@/lib/api";
 import { getSessionUserFromRequest } from "@/lib/auth";
-import { assertMonthUnlocked, computeCheckInStatus, getActiveShiftForUser, getOrCreateCurrentShiftAttendance } from "@/lib/attendance";
+import { computeCheckInStatus, getActiveShiftForUser, getOrCreateCurrentShiftAttendance } from "@/lib/attendance";
 import { prisma } from "@/lib/prisma";
 import { validateCsrf } from "@/lib/csrf";
 import { consumeApiRateLimit } from "@/lib/rate-limit";
@@ -19,7 +19,6 @@ export async function POST(request: NextRequest) {
     .$transaction(async (tx) => {
       const now = new Date();
       const today = await getOrCreateCurrentShiftAttendance(tx, user.id, now);
-      if (!(await assertMonthUnlocked(today.workDate, tx))) throw new Error("MONTH_LOCKED");
       if (today.checkInAt) throw new Error("ALREADY_CHECKED_IN");
       if (today.isOffDay) throw new Error("OFF_DAY");
 
@@ -38,14 +37,12 @@ export async function POST(request: NextRequest) {
       });
     })
     .catch((e) => {
-      if (e instanceof Error && e.message === "MONTH_LOCKED") return "MONTH_LOCKED" as const;
       if (e instanceof Error && e.message === "ALREADY_CHECKED_IN") return null;
       if (e instanceof Error && e.message === "OFF_DAY") return "OFF_DAY" as const;
       if (e instanceof Error && e.message === "PREVIOUS_SHIFT_OPEN") return "PREVIOUS_SHIFT_OPEN" as const;
       throw e;
     });
 
-  if (result === "MONTH_LOCKED") return fail("Tháng này đã khóa công", 409);
   if (!result) return fail("Bạn đã check-in ca hiện tại", 409);
   if (result === "OFF_DAY") return fail("Bạn đã báo off cho hôm nay", 409);
   if (result === "PREVIOUS_SHIFT_OPEN") return fail("Bạn chưa xuống ca ngày hôm trước. Vui lòng liên hệ quản lý để xử lý.", 409);

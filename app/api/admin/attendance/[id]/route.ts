@@ -5,7 +5,7 @@ import { fail, ok } from "@/lib/api";
 import { validateCsrf } from "@/lib/csrf";
 import { prisma } from "@/lib/prisma";
 import { requireRoleRequest } from "@/lib/rbac";
-import { assertMonthUnlocked, getActiveShiftForUser, recalculateAttendanceDay } from "@/lib/attendance";
+import { getActiveShiftForUser, recalculateAttendanceDay } from "@/lib/attendance";
 import { WARNING_FLAGS } from "@/lib/constants";
 
 const schema = z.object({
@@ -42,11 +42,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (payload.data.warningFlagsJson !== undefined) data.warningFlagsJson = JSON.stringify(payload.data.warningFlagsJson);
 
   const updated = await prisma.$transaction(async (tx) => {
-    const unlocked = await assertMonthUnlocked(existing.workDate, tx);
-    if (!unlocked) {
-      throw new Error("MONTH_LOCKED");
-    }
-
     const modified = await tx.attendanceDay.update({
       where: { id },
       data,
@@ -54,14 +49,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     const shift = await getActiveShiftForUser(modified.userId, new Date(`${modified.workDate}T12:00:00.000+07:00`), tx);
     return recalculateAttendanceDay(tx, modified, shift);
-  }).catch((e) => {
-    if (e instanceof Error && e.message === "MONTH_LOCKED") return "MONTH_LOCKED" as const;
-    throw e;
   });
-
-  if (updated === "MONTH_LOCKED") {
-    return fail("Tháng đã khóa, cần SuperAdmin mở khóa trước khi sửa", 409);
-  }
 
   await prisma.auditLog.create({
     data: {

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { AttendanceStatus } from "@prisma/client";
 import { fail, ok } from "@/lib/api";
 import { getSessionUserFromRequest } from "@/lib/auth";
-import { assertMonthUnlocked, getOrCreateTodayAttendance } from "@/lib/attendance";
+import { getOrCreateTodayAttendance } from "@/lib/attendance";
 import { prisma } from "@/lib/prisma";
 import { validateCsrf } from "@/lib/csrf";
 import { vnDateString } from "@/lib/time";
@@ -27,8 +27,6 @@ export async function POST(request: NextRequest) {
   const workDate = vnDateString();
 
   const result = await prisma.$transaction(async (tx) => {
-    if (!(await assertMonthUnlocked(workDate, tx))) throw new Error("MONTH_LOCKED");
-
     const today = await getOrCreateTodayAttendance(tx, user.id);
 
     if (today.checkInAt || today.checkOutAt) throw new Error("ALREADY_ATTENDED");
@@ -69,7 +67,6 @@ export async function POST(request: NextRequest) {
     return e.message;
   });
 
-  if (result === "MONTH_LOCKED") return fail("Tháng này đã khóa công", 409);
   if (result === "ALREADY_ATTENDED") return fail("Bạn đã check-in/check-out, không thể báo off", 409);
   if (result === "ALREADY_OFF") return fail("Bạn đã báo off hôm nay", 409);
   if (result === "USER_NOT_FOUND") return fail("Không tìm thấy tài khoản", 404);

@@ -174,7 +174,6 @@ export default function EmployeeToday() {
     try {
       const result = await apiJson<{
         updatedDates: string[];
-        skippedLockedMonth: string[];
         skippedAlreadyAttended: string[];
         skippedAlreadyOff: string[];
       }>("/api/attendance/off-days", {
@@ -186,7 +185,7 @@ export default function EmployeeToday() {
       setOffDateSelectionMode(false);
       setNote("");
       setMessage(
-        `Đã báo nghỉ ${result.updatedDates.length} ngày. Bỏ qua: khóa tháng ${result.skippedLockedMonth.length}, đã chấm công ${result.skippedAlreadyAttended.length}, đã nghỉ ${result.skippedAlreadyOff.length}.`,
+        `Đã báo nghỉ ${result.updatedDates.length} ngày. Bỏ qua: đã chấm công ${result.skippedAlreadyAttended.length}, đã nghỉ ${result.skippedAlreadyOff.length}.`,
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Báo nghỉ thất bại");

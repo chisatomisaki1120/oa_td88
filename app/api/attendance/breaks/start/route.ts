@@ -3,7 +3,7 @@ import { BreakType } from "@prisma/client";
 import { z } from "zod";
 import { fail, ok } from "@/lib/api";
 import { getSessionUserFromRequest } from "@/lib/auth";
-import { assertMonthUnlocked, getOrCreateCurrentShiftAttendance } from "@/lib/attendance";
+import { getOrCreateCurrentShiftAttendance } from "@/lib/attendance";
 import { prisma } from "@/lib/prisma";
 import { validateCsrf } from "@/lib/csrf";
 import { consumeApiRateLimit } from "@/lib/rate-limit";
@@ -25,9 +25,11 @@ export async function POST(request: NextRequest) {
 
   const result = await prisma.$transaction(async (tx) => {
     const today = await getOrCreateCurrentShiftAttendance(tx, user.id, new Date());
-    if (!(await assertMonthUnlocked(today.workDate, tx))) throw new Error("MONTH_LOCKED");
     if (!today.checkInAt) throw new Error("NO_CHECKIN");
     if (today.checkOutAt) throw new Error("ALREADY_CHECKOUT");
+
+    // Skip month lock for active shifts — employee already checked in (month was unlocked then)
+    // This allows break operations for overnight shifts spanning month boundaries
 
     const openBreak = await tx.breakSession.findFirst({ where: { attendanceDayId: today.id, endAt: null } });
     if (openBreak) throw new Error("BREAK_OPEN");
@@ -41,11 +43,9 @@ export async function POST(request: NextRequest) {
     });
   }).catch((e) => {
     if (!(e instanceof Error)) throw e;
-    if (e.message === "MONTH_LOCKED") return "MONTH_LOCKED" as const;
     return e.message;
   });
 
-  if (result === "MONTH_LOCKED") return fail("Tháng này đã khóa công", 409);
   if (result === "NO_CHECKIN") return fail("Bạn chưa check-in", 409);
   if (result === "ALREADY_CHECKOUT") return fail("Bạn đã check-out", 409);
   if (result === "BREAK_OPEN") return fail("Bạn đã bắt đầu nghỉ trước đó", 409);

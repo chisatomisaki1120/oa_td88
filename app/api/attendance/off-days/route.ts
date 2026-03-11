@@ -14,7 +14,6 @@ const schema = z.object({
 
 type OffDayBulkResult = {
   updatedDates: string[];
-  skippedLockedMonth: string[];
   skippedAlreadyAttended: string[];
   skippedAlreadyOff: string[];
 };
@@ -40,13 +39,6 @@ export async function POST(request: NextRequest) {
     });
     if (!me) return "USER_NOT_FOUND";
 
-    const allMonths = Array.from(new Set(uniqueDates.map((d) => d.slice(0, 7))));
-    const closures = await tx.monthlyClosure.findMany({
-      where: { month: { in: allMonths } },
-      select: { month: true, reopenedAt: true },
-    });
-    const lockedMonths = new Set(closures.filter((c) => !c.reopenedAt).map((c) => c.month));
-
     const existingDays = await tx.attendanceDay.findMany({
       where: {
         userId: user.id,
@@ -56,16 +48,11 @@ export async function POST(request: NextRequest) {
     });
     const dayMap = new Map(existingDays.map((d) => [d.workDate, d]));
 
-    const skippedLockedMonth: string[] = [];
     const skippedAlreadyAttended: string[] = [];
     const skippedAlreadyOff: string[] = [];
     const candidates: string[] = [];
 
     for (const workDate of uniqueDates) {
-      if (lockedMonths.has(workDate.slice(0, 7))) {
-        skippedLockedMonth.push(workDate);
-        continue;
-      }
       const existing = dayMap.get(workDate);
       if (existing?.checkInAt || existing?.checkOutAt) {
         skippedAlreadyAttended.push(workDate);
@@ -132,7 +119,6 @@ export async function POST(request: NextRequest) {
 
     return {
       updatedDates,
-      skippedLockedMonth,
       skippedAlreadyAttended,
       skippedAlreadyOff,
     };
