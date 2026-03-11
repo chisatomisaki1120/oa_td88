@@ -33,6 +33,12 @@ enum WorkMode {
   OFFLINE
 }
 
+enum LeaveRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
   id                String                  @id @default(cuid())
   username          String                  @unique
@@ -49,6 +55,7 @@ model User {
   breakPolicyJson   String                  @default("{\"wc\":{\"maxCount\":3,\"maxMinutesEach\":10},\"smoke\":{\"maxCount\":3,\"maxMinutesEach\":10},\"meal\":{\"maxCount\":2,\"maxMinutesEach\":40}}")
   workMode          WorkMode                @default(OFFLINE)
   allowedOffDaysPerMonth Int                @default(2)
+  annualLeaveQuota  Int                     @default(15)
   role              Role                    @default(EMPLOYEE)
   isActive          Boolean                 @default(true)
   createdAt         DateTime                @default(now())
@@ -59,6 +66,8 @@ model User {
   authSessions      AuthSession[]
   loginAccessLogs   LoginAccessLog[]
   auditLogs         AuditLog[]
+  leaveRequests     LeaveRequest[]          @relation("LeaveRequester")
+  reviewedLeaves    LeaveRequest[]          @relation("LeaveReviewer")
 
   @@index([isActive, deletedAt])
   @@index([deletedAt, role])
@@ -190,6 +199,27 @@ model LoginAccessLog {
   @@index([ipAddress, usernameInput, success, createdAt])
   @@index([success, deviceKey, userId])
   @@index([success, ipAddress, userId, createdAt])
+}
+
+model LeaveRequest {
+  id              String             @id @default(cuid())
+  userId          String
+  year            Int
+  dates           String
+  reason          String?
+  status          LeaveRequestStatus @default(PENDING)
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  rejectedReason  String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  user            User               @relation("LeaveRequester", fields: [userId], references: [id], onDelete: Cascade)
+  reviewer        User?              @relation("LeaveReviewer", fields: [reviewedBy], references: [id], onDelete: SetNull)
+
+  @@index([userId, year])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model LoginSecurityConfig {

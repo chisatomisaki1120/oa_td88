@@ -64,7 +64,7 @@ export default function EmployeeToday() {
   const [clockText, setClockText] = useState("");
   const [loading, setLoading] = useState(false);
   const [popup, setPopup] = useState<{ text: string; type: "success" | "error" } | null>(null);
-  const popupTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const popupTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const showPopup = useCallback((text: string, type: "success" | "error") => {
     clearTimeout(popupTimerRef.current);
     setPopup({ text, type });
@@ -73,6 +73,15 @@ export default function EmployeeToday() {
   const [breakType, setBreakType] = useState<"WC" | "SMOKE" | "MEAL" | "OTHER">("WC");
   const [leaveType, setLeaveType] = useState<(typeof LEAVE_OPTIONS)[number]>("Nghỉ phép");
   const [note, setNote] = useState("");
+
+  // Annual leave state
+  type LeaveReq = { id: string; dates: string[]; reason: string | null; status: string; reviewerName: string | null; rejectedReason: string | null; createdAt: string };
+  const [leaveRequests, setLeaveRequests] = useState<LeaveReq[]>([]);
+  const [leaveQuota, setLeaveQuota] = useState(15);
+  const [leaveUsed, setLeaveUsed] = useState(0);
+  const [annualLeaveDates, setAnnualLeaveDates] = useState<string[]>([]);
+  const [annualLeaveMode, setAnnualLeaveMode] = useState(false);
+  const [annualLeaveReason, setAnnualLeaveReason] = useState("");
 
   const rowsByDate = useMemo(() => new Map(rows.map((r) => [r.workDate, r])), [rows]);
   const selectedDay = rowsByDate.get(selectedDate) ?? null;
@@ -109,11 +118,23 @@ export default function EmployeeToday() {
     }
   }
 
+  async function loadLeaveRequests() {
+    try {
+      const data = await apiJson<{ requests: LeaveReq[]; quota: number; usedDays: number }>(
+        `/api/attendance/leave-requests?year=${new Date().getFullYear()}`,
+      );
+      setLeaveRequests(data.requests);
+      setLeaveQuota(data.quota);
+      setLeaveUsed(data.usedDays);
+    } catch { /* ignore */ }
+  }
+
   const loadRef = useRef(load);
   loadRef.current = load;
 
   useEffect(() => {
     load();
+    loadLeaveRequests();
   }, []);
 
   useEffect(() => {
@@ -200,6 +221,33 @@ export default function EmployeeToday() {
     setSelectedOffDates((current) => (current.includes(date) ? current.filter((d) => d !== date) : [...current, date].sort()));
   }
 
+  function toggleAnnualLeaveDate(date: string) {
+    setAnnualLeaveDates((current) => (current.includes(date) ? current.filter((d) => d !== date) : [...current, date].sort()));
+  }
+
+  async function submitAnnualLeave() {
+    if (annualLeaveDates.length === 0) {
+      showPopup("Vui lòng chọn ít nhất 1 ngày nghỉ phép năm.", "error");
+      return;
+    }
+    setLoading(true);
+    try {
+      await apiJson("/api/attendance/leave-requests", {
+        method: "POST",
+        body: JSON.stringify({ dates: annualLeaveDates, reason: annualLeaveReason.trim() || undefined }),
+      });
+      setAnnualLeaveDates([]);
+      setAnnualLeaveMode(false);
+      setAnnualLeaveReason("");
+      await loadLeaveRequests();
+      showPopup(`Đã gửi đơn nghỉ phép năm ${annualLeaveDates.length} ngày. Chờ admin duyệt.`, "success");
+    } catch (err) {
+      showPopup(err instanceof Error ? err.message : "Gửi đơn thất bại", "error");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   const statusBanner = useMemo(() => {
     if (!actionDay) return { text: "Chưa có dữ liệu chấm công", level: "neutral" as const };
     if (actionDay.isOffDay) return { text: `Nghỉ phép${actionDay.offReason ? ` — ${actionDay.offReason}` : ""}`, level: "off" as const };
@@ -257,13 +305,16 @@ export default function EmployeeToday() {
                     const isSelected = date === selectedDate;
                     const isCurrent = date === todayVn;
                     const isOffMarked = selectedOffDates.includes(date);
+                    const isAnnualLeaveMarked = annualLeaveDates.includes(date);
                     return (
                       <td
                         key={date}
-                        className={`employee-clock__cell${isSelected ? " is-selected" : ""}${isCurrent ? " is-today" : ""}${isOffMarked ? " is-off-selected" : ""}`}
+                        className={`employee-clock__cell${isSelected ? " is-selected" : ""}${isCurrent ? " is-today" : ""}${isOffMarked ? " is-off-selected" : ""}${isAnnualLeaveMarked ? " is-annual-leave-selected" : ""}`}
                         onClick={() => {
                           setSelectedDate(date);
-                          if (offDateSelectionMode) {
+                          if (annualLeaveMode) {
+                            toggleAnnualLeaveDate(date);
+                          } else if (offDateSelectionMode) {
                             toggleSelectedOffDate(date);
                           }
                         }}
@@ -378,6 +429,58 @@ export default function EmployeeToday() {
                 KẾT THÚC
               </button>
             </div>
+          </section>
+
+          <section className="employee-clock__panel">
+            <h4>NGHỈ PHÉP NĂM:</h4>
+            <p className="small">Hạn mức: <strong>{leaveQuota}</strong> ngày/năm — Đã dùng: <strong>{leaveUsed}</strong> — Còn lại: <strong>{leaveQuota - leaveUsed}</strong></p>
+            <div className="employee-clock__panel-actions" style={{ marginBottom: 6 }}>
+              <button
+                className={annualLeaveMode ? "danger" : "secondary"}
+                type="button"
+                onClick={() => { setAnnualLeaveMode((v) => !v); if (annualLeaveMode) setAnnualLeaveDates([]); }}
+              >
+                {annualLeaveMode ? "TẮT CHỌN" : "CHỌN NGÀY NGHỈ PHÉP NĂM"}
+              </button>
+            </div>
+            {annualLeaveMode && (
+              <>
+                <p className="small">Đã chọn {annualLeaveDates.length} ngày. Bấm vào lịch để chọn/bỏ ngày.</p>
+                <textarea
+                  value={annualLeaveReason}
+                  onChange={(e) => setAnnualLeaveReason(e.target.value)}
+                  placeholder="Lý do nghỉ phép (không bắt buộc)..."
+                  rows={2}
+                  style={{ marginBottom: 6 }}
+                />
+                <button
+                  type="button"
+                  disabled={loading || annualLeaveDates.length === 0}
+                  onClick={submitAnnualLeave}
+                >
+                  GỬI ĐƠN NGHỈ PHÉP NĂM
+                </button>
+              </>
+            )}
+            {leaveRequests.length > 0 && (
+              <div style={{ marginTop: 8 }}>
+                <p className="small" style={{ fontWeight: 600, marginBottom: 4 }}>Đơn đã gửi:</p>
+                {leaveRequests.map((lr) => (
+                  <div key={lr.id} style={{ fontSize: 12, padding: "4px 0", borderBottom: "1px solid var(--border)" }}>
+                    <span className={`badge${lr.status === "APPROVED" ? "" : lr.status === "REJECTED" ? "" : ""}`} style={{
+                      background: lr.status === "APPROVED" ? "var(--primary)" : lr.status === "REJECTED" ? "var(--danger)" : "var(--badge-bg)",
+                      color: lr.status === "PENDING" ? "var(--badge-text)" : "#fff",
+                      marginRight: 4,
+                    }}>
+                      {lr.status === "PENDING" ? "Chờ duyệt" : lr.status === "APPROVED" ? "Đã duyệt" : "Từ chối"}
+                    </span>
+                    <span>{lr.dates.length} ngày ({lr.dates.join(", ")})</span>
+                    {lr.reason && <span className="small"> — {lr.reason}</span>}
+                    {lr.rejectedReason && <span style={{ color: "var(--danger)" }}> — Lý do: {lr.rejectedReason}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
         </aside>
       </div>

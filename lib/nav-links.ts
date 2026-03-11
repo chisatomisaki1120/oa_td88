@@ -2,6 +2,7 @@ export type NavLink = { href: string; label: string };
 
 export const ADMIN_NAV_LINKS: NavLink[] = [
   { href: "/admin/attendance", label: "Chấm công" },
+  { href: "/admin/leave-requests", label: "Nghỉ phép" },
   { href: "/admin/users", label: "Nhân sự" },
   { href: "/admin/shifts", label: "Ca làm" },
   { href: "/admin/payroll", label: "Bảng lương" },

@@ -21,6 +21,25 @@ function runLoginSecurityUpgrade() {
   execSync("npm run db:upgrade:login-security", { stdio: "inherit" });
 }
 
+function migrateWcSmoke(dbFile: string) {
+  if (!fs.existsSync(dbFile)) return;
+  const db = new Database(dbFile);
+  const hasOld = db.prepare("SELECT 1 FROM BreakSession WHERE breakType = 'WC_SMOKE' LIMIT 1").get();
+  if (hasOld) {
+    console.log("Migrating old WC_SMOKE data...");
+    const r1 = db.prepare("UPDATE BreakSession SET breakType = 'WC' WHERE breakType = 'WC_SMOKE'").run();
+    console.log(`  BreakSession: ${r1.changes} rows`);
+  }
+  const hasOldPolicy = db.prepare("SELECT 1 FROM User WHERE breakPolicyJson LIKE '%wcSmoke%' LIMIT 1").get()
+    ?? db.prepare("SELECT 1 FROM Shift WHERE breakPolicyJson LIKE '%wcSmoke%' LIMIT 1").get();
+  if (hasOldPolicy) {
+    const r2 = db.prepare("UPDATE User SET breakPolicyJson = REPLACE(breakPolicyJson, '\"wcSmoke\"', '\"wc\"') WHERE breakPolicyJson LIKE '%wcSmoke%'").run();
+    const r3 = db.prepare("UPDATE Shift SET breakPolicyJson = REPLACE(breakPolicyJson, '\"wcSmoke\"', '\"wc\"') WHERE breakPolicyJson LIKE '%wcSmoke%'").run();
+    console.log(`  User policy: ${r2.changes}, Shift policy: ${r3.changes}`);
+  }
+  db.close();
+}
+
 function syncSchema() {
   console.log("Syncing database schema with current Prisma schema...");
   try {
@@ -41,6 +60,7 @@ if (hasExistingData(resolvedDbPath)) {
   console.log(`Using existing database at ${resolvedDbPath}`);
   execSync("npm run db:generate", { stdio: "inherit" });
   syncSchema();
+  migrateWcSmoke(resolvedDbPath);
   runLoginSecurityUpgrade();
   process.exit(0);
 }

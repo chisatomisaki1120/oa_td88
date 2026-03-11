@@ -72,6 +72,12 @@ export function warningLabel(warning: string) {
       return "Vượt thời gian ăn";
     case "EARLY_LEAVE":
       return "Về sớm";
+    case "OFF_DAY_DEDUCTED":
+      return "Nghỉ trừ phép";
+    case "OFF_DAY_ALLOWED":
+      return "Nghỉ có phép";
+    case "ANNUAL_LEAVE":
+      return "Nghỉ phép năm";
     default:
       return warning;
   }
