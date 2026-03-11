@@ -474,7 +474,7 @@ export default function EmployeeToday() {
                     }}>
                       {lr.status === "PENDING" ? "Chờ duyệt" : lr.status === "APPROVED" ? "Đã duyệt" : "Từ chối"}
                     </span>
-                    <span>{lr.dates.length} ngày ({lr.dates.join(", ")})</span>
+                    <span>{lr.dates.length} ngày ({lr.dates.length > 1 ? `${lr.dates[0]} → ${lr.dates[lr.dates.length - 1]}` : lr.dates[0]})</span>
                     {lr.reason && <span className="small"> — {lr.reason}</span>}
                     {lr.rejectedReason && <span style={{ color: "var(--danger)" }}> — Lý do: {lr.rejectedReason}</span>}
                   </div>

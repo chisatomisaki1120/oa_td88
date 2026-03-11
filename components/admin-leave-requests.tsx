@@ -25,6 +25,13 @@ const STATUS_LABELS: Record<string, string> = {
   REJECTED: "Từ chối",
 };
 
+function fmtDateRange(dates: string[]) {
+  if (dates.length === 0) return "-";
+  if (dates.length === 1) return dates[0];
+  const sorted = [...dates].sort();
+  return `${sorted[0]} → ${sorted[sorted.length - 1]}`;
+}
+
 export default function AdminLeaveRequests() {
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
   const [filterStatus, setFilterStatus] = useState("PENDING");
@@ -125,11 +132,7 @@ export default function AdminLeaveRequests() {
                   <td style={{ fontWeight: 600 }}>{r.username}</td>
                   <td>{r.department ?? "-"}</td>
                   <td>
-                    {r.dates.map((d) => (
-                      <span key={d} className="badge" style={{ marginRight: 4, marginBottom: 2, display: "inline-block" }}>
-                        {d}
-                      </span>
-                    ))}
+                    {fmtDateRange(r.dates)}
                     <span className="small"> ({r.dates.length} ngày)</span>
                   </td>
                   <td>{r.reason || "-"}</td>
@@ -209,11 +212,7 @@ export default function AdminLeaveRequests() {
                 <tr key={r.id}>
                   <td style={{ fontWeight: 600 }}>{r.username}</td>
                   <td>
-                    {r.dates.map((d) => (
-                      <span key={d} className="badge" style={{ marginRight: 4, marginBottom: 2, display: "inline-block" }}>
-                        {d}
-                      </span>
-                    ))}
+                    {fmtDateRange(r.dates)}
                     <span className="small"> ({r.dates.length} ngày)</span>
                   </td>
                   <td>{r.reason || "-"}</td>

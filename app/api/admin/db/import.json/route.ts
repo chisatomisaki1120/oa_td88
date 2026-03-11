@@ -101,6 +101,20 @@ export async function POST(request: NextRequest) {
     // non-fatal: data is already imported
   }
 
+  // Migrate old WC_SMOKE data if present
+  try {
+    const migrateDb = new Database(dbPath);
+    const hasOld = migrateDb.prepare("SELECT 1 FROM BreakSession WHERE breakType = 'WC_SMOKE' LIMIT 1").get();
+    if (hasOld) {
+      migrateDb.prepare("UPDATE BreakSession SET breakType = 'WC' WHERE breakType = 'WC_SMOKE'").run();
+    }
+    migrateDb.prepare("UPDATE User SET breakPolicyJson = REPLACE(breakPolicyJson, '\"wcSmoke\"', '\"wc\"') WHERE breakPolicyJson LIKE '%wcSmoke%'").run();
+    migrateDb.prepare("UPDATE Shift SET breakPolicyJson = REPLACE(breakPolicyJson, '\"wcSmoke\"', '\"wc\"') WHERE breakPolicyJson LIKE '%wcSmoke%'").run();
+    migrateDb.close();
+  } catch {
+    // non-fatal
+  }
+
   return ok({
     message: "Đã nhập dữ liệu DB từ JSON",
     importedBy: actor.username,
