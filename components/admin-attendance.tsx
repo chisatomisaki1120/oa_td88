@@ -257,7 +257,7 @@ function RowGroup({
         <td>{(() => {
           const onBreak = row.breakSessions.find((b) => !b.endAt);
           if (onBreak) return `Đang nghỉ ${breakTypeLabel(onBreak.breakType)}`;
-          return attendanceStatusLabel(row.status);
+          return attendanceStatusLabel(row.status, !!row.checkOutAt);
         })()}</td>
         <td>{row.isOffDay ? (row.isDeducted ? "Không phép" : "Có phép") : "-"}</td>
       </tr>

@@ -341,7 +341,7 @@ export default function EmployeeToday() {
                           <div className="employee-clock__cell-content">
                             <p>Vào: {info.checkInAt ? new Date(info.checkInAt).toLocaleTimeString("vi-VN") : "-"}</p>
                             <p>Ra: {info.checkOutAt ? new Date(info.checkOutAt).toLocaleTimeString("vi-VN") : "-"}</p>
-                            <p className="employee-clock__status">{attendanceStatusLabel(info.status)}</p>
+                            <p className="employee-clock__status">{attendanceStatusLabel(info.status, !!info.checkOutAt)}</p>
                           </div>
                         )}
                       </td>

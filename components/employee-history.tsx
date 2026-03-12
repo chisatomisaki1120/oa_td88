@@ -63,7 +63,7 @@ export default function EmployeeHistory() {
           {rows.map((r) => (
             <tr key={r.id}>
               <td>{r.workDate}</td>
-              <td>{attendanceStatusLabel(r.status)}</td>
+              <td>{attendanceStatusLabel(r.status, !!r.checkOutAt)}</td>
               <td>{r.checkInAt ? fmtDateTime(r.checkInAt) : "-"}</td>
               <td>{r.checkOutAt ? fmtDateTime(r.checkOutAt) : "-"}</td>
               <td>{r.workedMinutes ?? 0}</td>

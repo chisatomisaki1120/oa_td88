@@ -156,7 +156,7 @@ function UserDetailPanel({
                         ? `${Math.floor(r.workedMinutes / 60)}h${r.workedMinutes % 60 > 0 ? (r.workedMinutes % 60) + "p" : ""}`
                         : "-"}
                     </td>
-                    <td>{attendanceStatusLabel(r.status)}</td>
+                    <td>{attendanceStatusLabel(r.status, !!r.checkOutAt)}</td>
                     <td>{r.isOffDay ? (r.isDeducted ? "Không phép" : "Có phép") : "-"}</td>
                     <td>
                       {ws.length > 0 ? ws.map((w) => warningLabel(w)).join(", ") : "-"}

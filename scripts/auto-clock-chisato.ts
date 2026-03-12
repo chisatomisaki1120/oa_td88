@@ -179,7 +179,7 @@ async function main() {
           where: { id: attendance.id },
           data: {
             checkInAt: checkInTime,
-            status: AttendanceStatus.PRESENT,
+            status: AttendanceStatus.INCOMPLETE,
             warningFlagsJson: "[]",
             updatedBy: user.id,
           },

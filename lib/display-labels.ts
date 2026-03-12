@@ -22,12 +22,12 @@ export function workModeLabel(mode: string) {
   }
 }
 
-export function attendanceStatusLabel(status: string) {
+export function attendanceStatusLabel(status: string, hasCheckedOut?: boolean) {
   switch (status) {
     case "PRESENT":
-      return "Có mặt";
+      return hasCheckedOut ? "Đã tan ca" : "Có mặt";
     case "LATE":
-      return "Đi muộn";
+      return hasCheckedOut ? "Đã tan ca (muộn)" : "Đi muộn";
     case "EARLY_LEAVE":
       return "Về sớm";
     case "ABSENT":
