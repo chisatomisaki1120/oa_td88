@@ -16,6 +16,10 @@ type Day = {
   warningFlagsJson: string | string[];
 };
 
+type AttendanceMeResponse = {
+  items: Day[];
+};
+
 export default function EmployeeHistory() {
   const [month, setMonth] = useState(currentMonthVn);
   const [rows, setRows] = useState<Day[]>([]);
@@ -26,8 +30,8 @@ export default function EmployeeHistory() {
     try {
       const from = `${targetMonth}-01`;
       const to = `${targetMonth}-31`;
-      const data = await apiJson<Day[]>(`/api/attendance/me?from=${from}&to=${to}`);
-      setRows(data);
+      const data = await apiJson<AttendanceMeResponse>(`/api/attendance/me?from=${from}&to=${to}`);
+      setRows(data.items);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Không tải được dữ liệu");
     }

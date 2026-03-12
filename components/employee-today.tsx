@@ -27,6 +27,13 @@ type Day = {
   breakSessions: BreakSession[];
 };
 
+type PendingPreviousShift = {
+  id: string;
+  workDate: string;
+  checkInAt: string | null;
+  checkOutAt: string | null;
+};
+
 const WEEK_DAYS = ["THỨ HAI", "THỨ BA", "THỨ TƯ", "THỨ NĂM", "THỨ SÁU", "THỨ BẢY", "CHỦ NHẬT"] as const;
 const LEAVE_OPTIONS = ["Nghỉ phép", "Bổ sung thẻ", "Việc riêng", "Khác"] as const;
 function getTodayVN() {
@@ -61,6 +68,7 @@ export default function EmployeeToday() {
   const [selectedOffDates, setSelectedOffDates] = useState<string[]>([]);
   const [offDateSelectionMode, setOffDateSelectionMode] = useState(false);
   const [rows, setRows] = useState<Day[]>([]);
+  const [pendingPreviousShift, setPendingPreviousShift] = useState<PendingPreviousShift | null>(null);
   const [clockText, setClockText] = useState("");
   const [loading, setLoading] = useState(false);
   const [popup, setPopup] = useState<{ text: string; type: "success" | "error" } | null>(null);
@@ -111,8 +119,9 @@ export default function EmployeeToday() {
       const prevLast = new Date(y, m - 1, 0);
       const from = `${prevLast.getFullYear()}-${String(prevLast.getMonth() + 1).padStart(2, "0")}-${String(prevLast.getDate()).padStart(2, "0")}`;
       const to = `${targetMonth}-${String(daysInMonth).padStart(2, "0")}`;
-      const data = await apiJson<{ items: Day[]; pendingPreviousShift: { id: string; workDate: string; checkInAt: string | null; checkOutAt: string | null } | null }>(`/api/attendance/me?from=${from}&to=${to}`);
+      const data = await apiJson<{ items: Day[]; pendingPreviousShift: PendingPreviousShift | null }>(`/api/attendance/me?from=${from}&to=${to}`);
       setRows(data.items);
+      setPendingPreviousShift(data.pendingPreviousShift);
     } catch (err) {
       showPopup(err instanceof Error ? err.message : "Không tải được dữ liệu", "error");
     }
@@ -269,6 +278,13 @@ export default function EmployeeToday() {
         <span className="employee-clock__status-dot" />
         <span>{statusBanner.text}</span>
       </div>
+      {pendingPreviousShift && (
+        <div className="employee-clock__warnings">
+          <span className="employee-clock__warning-tag">
+            ⚠ Ca trước ({pendingPreviousShift.workDate}) chưa xuống ca.
+          </span>
+        </div>
+      )}
       {warnings.length > 0 && (
         <div className="employee-clock__warnings">
           {warnings.map((w) => (

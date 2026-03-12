@@ -192,6 +192,7 @@ export async function POST(request: NextRequest) {
   const now = new Date();
   const todayVn = vnDateString(now);
   const todayStart = parseWorkDateToUtc(todayVn);
+  const tomorrowStart = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
   const activeSessionWindowMinutesRaw = Number(process.env.SINGLE_DEVICE_ACTIVE_WINDOW_MINUTES ?? "30");
   const activeSessionWindowMinutes = Number.isFinite(activeSessionWindowMinutesRaw) && activeSessionWindowMinutesRaw > 0 ? activeSessionWindowMinutesRaw : 30;
   const activeSessionCutoff = new Date(now.getTime() - activeSessionWindowMinutes * 60 * 1000);
@@ -235,7 +236,10 @@ export async function POST(request: NextRequest) {
       where: {
         success: true,
         userId: { not: user.id },
-        OR: [{ ipAddress: ip, createdAt: { gte: todayStart } }, { deviceKey }],
+        OR: [
+          { ipAddress: ip, createdAt: { gte: todayStart, lt: tomorrowStart } },
+          { deviceKey, createdAt: { gte: todayStart, lt: tomorrowStart } },
+        ],
       },
       select: { userId: true, ipAddress: true, deviceKey: true },
     });
@@ -243,7 +247,6 @@ export async function POST(request: NextRequest) {
     if (recentConflict) {
       const sameIp = recentConflict.ipAddress === ip;
       const sameDevice = recentConflict.deviceKey === deviceKey;
-      const relatedUserIds = recentConflict.userId ? [recentConflict.userId] : [];
       await logFailedLoginAttempt({
         userId: user.id,
         usernameInput: parsed.data.username,
@@ -260,12 +263,12 @@ export async function POST(request: NextRequest) {
 
   const [sharedIpRows, sharedDeviceRows] = await Promise.all([
     prisma.loginAccessLog.findMany({
-      where: { success: true, ipAddress: ip, userId: { not: user.id }, createdAt: { gte: todayStart } },
+      where: { success: true, ipAddress: ip, userId: { not: user.id }, createdAt: { gte: todayStart, lt: tomorrowStart } },
       select: { userId: true },
       distinct: ["userId"],
     }),
     prisma.loginAccessLog.findMany({
-      where: { success: true, deviceKey, userId: { not: user.id } },
+      where: { success: true, deviceKey, userId: { not: user.id }, createdAt: { gte: todayStart, lt: tomorrowStart } },
       select: { userId: true },
       distinct: ["userId"],
     }),
