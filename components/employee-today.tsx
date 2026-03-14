@@ -414,6 +414,47 @@ export default function EmployeeToday() {
               </button>
             </div>
             {selectedDay?.offReason && <p className="small">Đã báo off: {selectedDay.offReason}</p>}
+            {(() => {
+              const registeredOffDays = rows.filter((r) => r.isOffDay && !r.checkInAt && !r.checkOutAt);
+              if (registeredOffDays.length === 0) return null;
+              return (
+                <div style={{ marginTop: 8 }}>
+                  <p className="small" style={{ fontWeight: 600, marginBottom: 4 }}>Ngày off đã đăng ký (tháng {month}):</p>
+                  {registeredOffDays.map((r) => (
+                    <div key={r.workDate} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, padding: "3px 0", borderBottom: "1px solid var(--border)" }}>
+                      <span>{r.workDate} — {r.offReason || "Không ghi chú"}</span>
+                      <button
+                        className="danger"
+                        type="button"
+                        disabled={loading}
+                        style={{ fontSize: 11, padding: "2px 8px" }}
+                        onClick={async () => {
+                          setLoading(true);
+                          try {
+                            const result = await apiJson<{ cancelledDates: string[]; skippedHasAttendance: string[] }>("/api/attendance/off-days", {
+                              method: "DELETE",
+                              body: JSON.stringify({ dates: [r.workDate] }),
+                            });
+                            await load(month);
+                            if (result.cancelledDates.length > 0) {
+                              showPopup(`Đã hủy off ngày ${r.workDate}`, "success");
+                            } else {
+                              showPopup("Không thể hủy — ngày đã có chấm công", "error");
+                            }
+                          } catch (err) {
+                            showPopup(err instanceof Error ? err.message : "Hủy off thất bại", "error");
+                          } finally {
+                            setLoading(false);
+                          }
+                        }}
+                      >
+                        HỦY
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </section>
 
           <section className="employee-clock__panel">

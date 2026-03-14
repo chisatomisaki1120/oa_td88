@@ -14,7 +14,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem("oa_theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t)}catch(e){}})()`,
+            __html: `(function(){try{var t=localStorage.getItem("oa_theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t)}catch(e){}})();window.addEventListener("error",function(e){if(e.message&&(e.message.indexOf("Loading chunk")!==-1||e.message.indexOf("ChunkLoadError")!==-1||e.message.indexOf("Failed to fetch dynamically imported module")!==-1)){window.location.reload()}},true)`,
           }}
         />
       </head>

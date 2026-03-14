@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
     warningDays: number;
     allowedOff: number;
     remainingOff: number;
+    _scheduledMin: number;
   };
 
   const byUser = new Map<string, Summary>();
@@ -64,6 +65,7 @@ export async function GET(request: NextRequest) {
         totalWorkedMinutes: 0, overtimeMinutes: 0, warningDays: 0,
         allowedOff: u.allowedOffDaysPerMonth,
         remainingOff: u.allowedOffDaysPerMonth,
+        _scheduledMin: scheduled,
       });
     }
 
@@ -80,16 +82,13 @@ export async function GET(request: NextRequest) {
 
     const worked = row.workedMinutes ?? 0;
     s.totalWorkedMinutes += worked;
-    const startMin = u.workStartTime ? parseHHMM(u.workStartTime) : 480;
-    const endMin = u.workEndTime ? parseHHMM(u.workEndTime) : 1020;
-    let scheduledMin = endMin - startMin;
-    if (scheduledMin <= 0) scheduledMin += 1440;
-    if (worked > scheduledMin && !row.isOffDay) s.overtimeMinutes += worked - scheduledMin;
+    if (worked > s._scheduledMin && !row.isOffDay) s.overtimeMinutes += worked - s._scheduledMin;
 
     if (parseWarnings(row.warningFlagsJson).length > 0) s.warningDays++;
   }
 
-  const summaries = [...byUser.values()].map((s) => ({
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const summaries = [...byUser.values()].map(({ _scheduledMin, ...s }) => ({
     ...s,
     remainingOff: Math.max(0, s.allowedOff - s.offDaysPaid),
   }));

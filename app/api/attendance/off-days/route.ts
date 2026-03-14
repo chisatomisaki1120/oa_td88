@@ -127,3 +127,62 @@ export async function POST(request: NextRequest) {
   if (result === "USER_NOT_FOUND") return fail("Không tìm thấy tài khoản", 404);
   return ok(result);
 }
+
+// ── Cancel off-days ──
+
+const deleteSchema = z.object({
+  dates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).min(1).max(62),
+});
+
+export async function DELETE(request: NextRequest) {
+  if (!validateCsrf(request)) return fail("Invalid CSRF token", 403);
+  const user = await getSessionUserFromRequest(request);
+  if (!user) return fail("Unauthorized", 401);
+
+  const rl = consumeApiRateLimit(`off-days-del:${user.id}`);
+  if (!rl.allowed) return fail(`Vui lòng thử lại sau ${rl.retryAfterSeconds}s`, 429);
+
+  const payload = deleteSchema.safeParse(await request.json().catch(() => null));
+  if (!payload.success) return fail("Invalid payload", 400, payload.error.flatten());
+
+  const uniqueDates = Array.from(new Set(payload.data.dates)).sort();
+
+  const result = await prisma.$transaction(async (tx) => {
+    const days = await tx.attendanceDay.findMany({
+      where: {
+        userId: user.id,
+        workDate: { in: uniqueDates },
+        isOffDay: true,
+      },
+      select: { id: true, workDate: true, checkInAt: true, checkOutAt: true },
+    });
+
+    const cancelledDates: string[] = [];
+    const skippedHasAttendance: string[] = [];
+
+    for (const day of days) {
+      if (day.checkInAt || day.checkOutAt) {
+        skippedHasAttendance.push(day.workDate);
+        continue;
+      }
+
+      await tx.attendanceDay.update({
+        where: { id: day.id },
+        data: {
+          isOffDay: false,
+          isDeducted: false,
+          offReason: null,
+          status: AttendanceStatus.INCOMPLETE,
+          workedMinutes: null,
+          warningFlagsJson: "[]",
+          updatedBy: user.id,
+        },
+      });
+      cancelledDates.push(day.workDate);
+    }
+
+    return { cancelledDates, skippedHasAttendance };
+  });
+
+  return ok(result);
+}

@@ -80,7 +80,12 @@ export async function getActiveShiftForUser(userId: string, atDate: Date = new D
 function getBreakPolicy(schedule: WorkSchedule | null): BreakPolicy {
   if (!schedule) return DEFAULT_BREAK_POLICY;
   try {
-    return JSON.parse(schedule.breakPolicyJson) as BreakPolicy;
+    const raw = JSON.parse(schedule.breakPolicyJson);
+    return {
+      wc: { maxCount: raw?.wc?.maxCount ?? DEFAULT_BREAK_POLICY.wc.maxCount, maxMinutesEach: raw?.wc?.maxMinutesEach ?? DEFAULT_BREAK_POLICY.wc.maxMinutesEach },
+      smoke: { maxCount: raw?.smoke?.maxCount ?? DEFAULT_BREAK_POLICY.smoke.maxCount, maxMinutesEach: raw?.smoke?.maxMinutesEach ?? DEFAULT_BREAK_POLICY.smoke.maxMinutesEach },
+      meal: { maxCount: raw?.meal?.maxCount ?? DEFAULT_BREAK_POLICY.meal.maxCount, maxMinutesEach: raw?.meal?.maxMinutesEach ?? DEFAULT_BREAK_POLICY.meal.maxMinutesEach },
+    };
   } catch {
     return DEFAULT_BREAK_POLICY;
   }

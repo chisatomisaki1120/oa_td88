@@ -12,6 +12,10 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   static getDerivedStateFromError(error: Error): State {
+    if (isChunkLoadError(error)) {
+      window.location.reload();
+      return { hasError: true, message: "Đang tải lại trang..." };
+    }
     return { hasError: true, message: error.message || "Đã xảy ra lỗi không mong muốn" };
   }
 
@@ -27,6 +31,12 @@ export class ErrorBoundary extends Component<Props, State> {
     }
     return this.props.children;
   }
+}
+
+function isChunkLoadError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const msg = error.message;
+  return msg.includes("Loading chunk") || msg.includes("ChunkLoadError") || msg.includes("Failed to fetch dynamically imported module") || (msg.includes("Load failed") && error.name === "ChunkLoadError");
 }
 
 export function ErrorMessage({ error }: { error: string }) {

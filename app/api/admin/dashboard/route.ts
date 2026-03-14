@@ -92,10 +92,11 @@ export async function GET(request: NextRequest) {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, data]) => ({ date: date.slice(8), fullDate: date, ...data }));
 
-  // Top late employees
-  const topLate = [...empMap.values()].sort((a, b) => b.late - a.late).slice(0, 10).filter((e) => e.late > 0);
-  const topAbsent = [...empMap.values()].sort((a, b) => b.absent - a.absent).slice(0, 10).filter((e) => e.absent > 0);
-  const topWarnings = [...empMap.values()].sort((a, b) => b.warnings - a.warnings).slice(0, 10).filter((e) => e.warnings > 0);
+  // Top late employees — share the array to avoid 3× spread+sort
+  const empArr = [...empMap.values()];
+  const topLate = empArr.filter((e) => e.late > 0).sort((a, b) => b.late - a.late).slice(0, 10);
+  const topAbsent = empArr.filter((e) => e.absent > 0).sort((a, b) => b.absent - a.absent).slice(0, 10);
+  const topWarnings = empArr.filter((e) => e.warnings > 0).sort((a, b) => b.warnings - a.warnings).slice(0, 10);
 
   return ok({
     today: {

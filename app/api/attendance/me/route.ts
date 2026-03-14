@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     [from, to] = [to, from];
   }
 
-  const [items, pendingPreviousShift] = await Promise.all([
+  const [items, pendingPrevRaw] = await Promise.all([
     prisma.attendanceDay.findMany({
       where: {
         userId: user.id,
@@ -56,19 +56,11 @@ export async function GET(request: NextRequest) {
       },
       orderBy: { workDate: "desc" },
     }),
-    prisma.$transaction((tx) =>
-      getPendingPreviousOpenAttendance(tx, user.id).then((item) =>
-        item
-          ? {
-              id: item.id,
-              workDate: item.workDate,
-              checkInAt: item.checkInAt,
-              checkOutAt: item.checkOutAt,
-            }
-          : null,
-      ),
-    ),
+    getPendingPreviousOpenAttendance(prisma, user.id),
   ]);
+  const pendingPreviousShift = pendingPrevRaw
+    ? { id: pendingPrevRaw.id, workDate: pendingPrevRaw.workDate, checkInAt: pendingPrevRaw.checkInAt, checkOutAt: pendingPrevRaw.checkOutAt }
+    : null;
 
   return ok(
     {
