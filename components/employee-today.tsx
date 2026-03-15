@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiJson } from "@/lib/client-api";
 import { attendanceStatusLabel, breakTypeLabel, warningLabel, parseWarnings } from "@/lib/display-labels";
-import { fmtDateTime, fmtTime, VN_TIMEZONE } from "@/lib/time";
+import { fmtDateTime, fmtTime } from "@/lib/time";
 
 type BreakSession = {
   id: string;
@@ -36,9 +36,6 @@ type PendingPreviousShift = {
 
 const WEEK_DAYS = ["THỨ HAI", "THỨ BA", "THỨ TƯ", "THỨ NĂM", "THỨ SÁU", "THỨ BẢY", "CHỦ NHẬT"] as const;
 const LEAVE_OPTIONS = ["Nghỉ phép", "Bổ sung thẻ", "Việc riêng", "Khác"] as const;
-function getTodayVN() {
-  return new Date().toLocaleDateString("en-CA", { timeZone: VN_TIMEZONE });
-}
 
 function toMonthDate(month: string, day: number) {
   return `${month}-${String(day).padStart(2, "0")}`;
@@ -61,9 +58,13 @@ function panelDateText(workDate: string) {
   return `${workDate} ${weekday}`;
 }
 
-export default function EmployeeToday() {
-  const todayVn = getTodayVN();
-  const [month, setMonth] = useState(getTodayVN().slice(0, 7));
+type Props = {
+  initialTodayVn: string;
+};
+
+export default function EmployeeToday({ initialTodayVn }: Props) {
+  const [todayVn] = useState(initialTodayVn);
+  const [month, setMonth] = useState(initialTodayVn.slice(0, 7));
   const [selectedDate, setSelectedDate] = useState(todayVn);
   const [selectedOffDates, setSelectedOffDates] = useState<string[]>([]);
   const [offDateSelectionMode, setOffDateSelectionMode] = useState(false);
@@ -78,6 +79,9 @@ export default function EmployeeToday() {
     setPopup({ text, type });
     popupTimerRef.current = setTimeout(() => setPopup(null), 4000);
   }, []);
+
+  // Cleanup popup timer on unmount
+  useEffect(() => () => clearTimeout(popupTimerRef.current), []);
   const [breakType, setBreakType] = useState<"WC" | "SMOKE" | "MEAL" | "OTHER">("WC");
   const [leaveType, setLeaveType] = useState<(typeof LEAVE_OPTIONS)[number]>("Nghỉ phép");
   const [note, setNote] = useState("");

@@ -8,6 +8,8 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/rbac";
 import { sanitizeUserForAudit } from "@/lib/audit";
 import { vnMonthString } from "@/lib/time";
+import { TIME_REGEX } from "@/lib/constants";
+import { parseWarnings } from "@/lib/display-labels";
 
 const updateSchema = z
   .object({
@@ -18,8 +20,8 @@ const updateSchema = z
     department: z.string().optional(),
     currentPassword: z.string().min(1).optional(),
     newPassword: z.string().min(6).optional(),
-    workStartTime: z.string().regex(/^\d{2}:\d{2}$/).optional().or(z.literal("")),
-    workEndTime: z.string().regex(/^\d{2}:\d{2}$/).optional().or(z.literal("")),
+    workStartTime: z.string().regex(TIME_REGEX, "Giờ không hợp lệ (HH:MM)").optional().or(z.literal("")),
+    workEndTime: z.string().regex(TIME_REGEX, "Giờ không hợp lệ (HH:MM)").optional().or(z.literal("")),
     lateGraceMinutes: z.number().int().min(0).max(180).optional(),
     earlyLeaveGraceMinutes: z.number().int().min(0).max(180).optional(),
     workMode: z.nativeEnum(WorkMode).optional(),
@@ -65,18 +67,26 @@ export async function GET(request: NextRequest) {
   const stats = {
     month,
     totalDays: attendance.length,
-    presentDays: attendance.filter((a) => a.status === "PRESENT").length,
-    lateDays: attendance.filter((a) => a.status === "LATE").length,
-    earlyLeaveDays: attendance.filter((a) => a.status === "EARLY_LEAVE").length,
-    absentDays: attendance.filter((a) => a.status === "ABSENT").length,
-    offDays: attendance.filter((a) => a.isOffDay).length,
-    deductedDays: attendance.filter((a) => a.isDeducted).length,
-    totalWorkedMinutes: attendance.reduce((sum, a) => sum + (a.workedMinutes ?? 0), 0),
-    warningCount: attendance.filter((a) => {
-      try { const w = JSON.parse(a.warningFlagsJson); return Array.isArray(w) && w.length > 0; } catch { return false; }
-    }).length,
+    presentDays: 0,
+    lateDays: 0,
+    earlyLeaveDays: 0,
+    absentDays: 0,
+    offDays: 0,
+    deductedDays: 0,
+    totalWorkedMinutes: 0,
+    warningCount: 0,
     allowedOffDaysPerMonth: me?.allowedOffDaysPerMonth ?? 2,
   };
+  for (const a of attendance) {
+    if (a.status === "PRESENT") stats.presentDays++;
+    if (a.status === "LATE") stats.lateDays++;
+    if (a.status === "EARLY_LEAVE") stats.earlyLeaveDays++;
+    if (a.status === "ABSENT") stats.absentDays++;
+    if (a.isOffDay) stats.offDays++;
+    if (a.isDeducted) stats.deductedDays++;
+    stats.totalWorkedMinutes += a.workedMinutes ?? 0;
+    if (parseWarnings(a.warningFlagsJson).length > 0) stats.warningCount++;
+  }
 
   return ok({ ...me, stats });
 }

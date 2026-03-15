@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { apiJson } from "@/lib/client-api";
 import { attendanceStatusLabel, breakTypeLabel } from "@/lib/display-labels";
-import { fmtTime, fmtDateTime, buildMonthOptions, currentDateVn, currentMonthVn } from "@/lib/time";
+import { fmtTime, fmtDateTime } from "@/lib/time";
 import { ErrorMessage, EmptyState, SuccessMessage } from "@/components/ui-feedback";
 
 type BreakRow = {
@@ -48,9 +48,15 @@ type UserOption = {
   username: string;
 };
 
-export default function AdminAttendance() {
-  const [date, setDate] = useState(currentDateVn);
-  const [exportMonth, setExportMonth] = useState(currentMonthVn);
+type Props = {
+  initialDate: string;
+  initialMonth: string;
+  monthOptions: string[];
+};
+
+export default function AdminAttendance({ initialDate, initialMonth, monthOptions }: Props) {
+  const [date, setDate] = useState(initialDate);
+  const [exportMonth, setExportMonth] = useState(initialMonth);
   const [rows, setRows] = useState<Row[]>([]);
   const [error, setError] = useState("");
   const [editingId, setEditingId] = useState("");
@@ -64,8 +70,6 @@ export default function AdminAttendance() {
   const [filterUserId, setFilterUserId] = useState("");
   const [users, setUsers] = useState<UserOption[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-
-  const monthOptions = useMemo(() => buildMonthOptions(), []);
 
   async function loadUsers() {
     try {

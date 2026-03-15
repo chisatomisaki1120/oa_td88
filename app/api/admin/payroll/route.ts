@@ -3,7 +3,7 @@ import { Role } from "@prisma/client";
 import { fail, ok } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { requireRoleRequest } from "@/lib/rbac";
-import { parseWarnings } from "@/lib/attendance";
+import { parseWarnings } from "@/lib/display-labels";
 import { parseHHMM } from "@/lib/time";
 
 export async function GET(request: NextRequest) {

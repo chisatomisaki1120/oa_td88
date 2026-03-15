@@ -4,14 +4,9 @@ import { FormEvent, Fragment, useEffect, useState } from "react";
 import type { Role } from "@prisma/client";
 import { apiJson } from "@/lib/client-api";
 import { roleLabel, workModeLabel, attendanceStatusLabel, warningLabel, parseWarnings } from "@/lib/display-labels";
-import { fmtDateTime, buildMonthOptions, currentMonthVn } from "@/lib/time";
+import { fmtDateTime } from "@/lib/time";
 import { ErrorMessage, SuccessMessage, EmptyState } from "@/components/ui-feedback";
-
-const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
-  const h = String(Math.floor(i / 2)).padStart(2, "0");
-  const m = i % 2 === 0 ? "00" : "30";
-  return `${h}:${m}`;
-});
+import { TIME_OPTIONS } from "@/lib/constants";
 
 type User = {
   id: string;
@@ -44,6 +39,8 @@ type AttendanceRow = {
 
 type Props = {
   actorRole: Role;
+  initialMonth: string;
+  monthOptions: string[];
 };
 
 function UserDetailPanel({
@@ -172,7 +169,7 @@ function UserDetailPanel({
   );
 }
 
-export default function AdminUsers({ actorRole }: Props) {
+export default function AdminUsers({ actorRole, initialMonth, monthOptions }: Props) {
   const canAssignSuperAdmin = actorRole === "SUPER_ADMIN";
 
   const [rows, setRows] = useState<User[]>([]);
@@ -208,7 +205,7 @@ export default function AdminUsers({ actorRole }: Props) {
   });
 
   const [detailUserId, setDetailUserId] = useState("");
-  const [detailMonth, setDetailMonth] = useState(currentMonthVn);
+  const [detailMonth, setDetailMonth] = useState(initialMonth);
   const [detailRows, setDetailRows] = useState<AttendanceRow[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
 
@@ -224,8 +221,6 @@ export default function AdminUsers({ actorRole }: Props) {
   useEffect(() => {
     load();
   }, []);
-
-  const monthOptions = buildMonthOptions();
 
   async function loadDetail(userId: string, month: string) {
     setDetailLoading(true);

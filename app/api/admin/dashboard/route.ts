@@ -4,7 +4,7 @@ import { fail, ok } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { requireRoleRequest } from "@/lib/rbac";
 import { vnDateString, vnMonthString } from "@/lib/time";
-import { parseWarnings } from "@/lib/attendance";
+import { parseWarnings } from "@/lib/display-labels";
 
 export async function GET(request: NextRequest) {
   const actor = await requireRoleRequest(request, [Role.ADMIN, Role.SUPER_ADMIN]);
@@ -18,11 +18,23 @@ export async function GET(request: NextRequest) {
     prisma.user.count({ where: { role: "EMPLOYEE", isActive: true, deletedAt: null } }),
     prisma.attendanceDay.findMany({
       where: { workDate: today },
-      include: { user: { select: { id: true, fullName: true, username: true } } },
+      select: {
+        userId: true,
+        status: true,
+        isOffDay: true,
+        user: { select: { id: true, fullName: true, username: true } },
+      },
     }),
     prisma.attendanceDay.findMany({
       where: { workDate: { gte: `${month}-01`, lte: `${month}-31` } },
-      include: { user: { select: { id: true, fullName: true, username: true } } },
+      select: {
+        userId: true,
+        workDate: true,
+        status: true,
+        isOffDay: true,
+        warningFlagsJson: true,
+        user: { select: { id: true, fullName: true, username: true } },
+      },
     }),
     prisma.user.findMany({
       where: { role: "EMPLOYEE", isActive: true, deletedAt: null },
@@ -53,11 +65,20 @@ export async function GET(request: NextRequest) {
     .filter((u) => !checkedInUserIds.has(u.id))
     .map((u) => ({ fullName: u.fullName, username: u.username }));
 
-  // Per-employee monthly aggregates
+  // Per-employee monthly aggregates + daily breakdown in single pass
   type EmpStats = { fullName: string; username: string; late: number; absent: number; warnings: number; offDays: number };
   const empMap = new Map<string, EmpStats>();
 
+  type DailyEntry = {
+    present: number; late: number; absent: number; off: number;
+    presentList: EmpRef[]; lateList: EmpRef[]; absentList: EmpRef[]; offList: EmpRef[]; incompleteList: EmpRef[];
+  };
+  const dailyMap = new Map<string, DailyEntry>();
+
   for (const a of monthAttendance) {
+    const emp: EmpRef = { fullName: a.user.fullName, username: a.user.username };
+
+    // Per-employee aggregation
     if (!empMap.has(a.userId)) {
       empMap.set(a.userId, { fullName: a.user.fullName, username: a.user.username, late: 0, absent: 0, warnings: 0, offDays: 0 });
     }
@@ -66,18 +87,10 @@ export async function GET(request: NextRequest) {
     if (a.status === "ABSENT") s.absent++;
     if (parseWarnings(a.warningFlagsJson).length > 0) s.warnings++;
     if (a.isOffDay) s.offDays++;
-  }
 
-  // Monthly daily breakdown (for chart)
-  type DailyEntry = {
-    present: number; late: number; absent: number; off: number;
-    presentList: EmpRef[]; lateList: EmpRef[]; absentList: EmpRef[]; offList: EmpRef[]; incompleteList: EmpRef[];
-  };
-  const dailyMap = new Map<string, DailyEntry>();
-  for (const a of monthAttendance) {
+    // Daily breakdown
     if (!dailyMap.has(a.workDate)) dailyMap.set(a.workDate, { present: 0, late: 0, absent: 0, off: 0, presentList: [], lateList: [], absentList: [], offList: [], incompleteList: [] });
     const d = dailyMap.get(a.workDate)!;
-    const emp: EmpRef = { fullName: a.user.fullName, username: a.user.username };
     if (a.status === "PRESENT" || a.status === "LATE" || a.status === "EARLY_LEAVE") {
       d.present++;
       d.presentList.push(emp);

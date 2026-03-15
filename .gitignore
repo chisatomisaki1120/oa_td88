@@ -41,6 +41,12 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-#database
+# database / local artifacts
 /data
 *.db
+*.db-journal
+*-wal
+*-shm
+auth
+auth-wal
+db-export-*.json

@@ -17,24 +17,24 @@ const DEFAULT_CONFIG: LoginSecurityConfigValue = {
 export async function getLoginSecurityConfig(): Promise<LoginSecurityConfigValue> {
   const config = await prisma.loginSecurityConfig.findUnique({
     where: { id: LOGIN_SECURITY_CONFIG_ID },
+    select: {
+      enforceSingleDevicePerAccount: true,
+      enforceSingleAccountPerDeviceIp: true,
+      blockMobilePhoneLogin: true,
+    },
   });
-  if (!config) return DEFAULT_CONFIG;
-  return {
-    enforceSingleDevicePerAccount: config.enforceSingleDevicePerAccount,
-    enforceSingleAccountPerDeviceIp: config.enforceSingleAccountPerDeviceIp,
-    blockMobilePhoneLogin: config.blockMobilePhoneLogin,
-  };
+  return config ?? DEFAULT_CONFIG;
 }
 
 export async function saveLoginSecurityConfig(data: LoginSecurityConfigValue): Promise<LoginSecurityConfigValue> {
-  const saved = await prisma.loginSecurityConfig.upsert({
+  return prisma.loginSecurityConfig.upsert({
     where: { id: LOGIN_SECURITY_CONFIG_ID },
     create: { id: LOGIN_SECURITY_CONFIG_ID, ...data },
     update: data,
+    select: {
+      enforceSingleDevicePerAccount: true,
+      enforceSingleAccountPerDeviceIp: true,
+      blockMobilePhoneLogin: true,
+    },
   });
-  return {
-    enforceSingleDevicePerAccount: saved.enforceSingleDevicePerAccount,
-    enforceSingleAccountPerDeviceIp: saved.enforceSingleAccountPerDeviceIp,
-    blockMobilePhoneLogin: saved.blockMobilePhoneLogin,
-  };
 }

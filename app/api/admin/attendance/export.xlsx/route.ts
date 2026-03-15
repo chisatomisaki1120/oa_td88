@@ -4,7 +4,7 @@ import { Role } from "@prisma/client";
 import { fail } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { requireRoleRequest } from "@/lib/rbac";
-import { parseWarnings } from "@/lib/attendance";
+import { parseWarnings } from "@/lib/display-labels";
 
 type EmployeeSummary = {
   employeeName: string;

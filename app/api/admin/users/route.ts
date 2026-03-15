@@ -6,7 +6,7 @@ import { hashPassword } from "@/lib/auth";
 import { validateCsrf } from "@/lib/csrf";
 import { prisma } from "@/lib/prisma";
 import { requireRoleRequest } from "@/lib/rbac";
-import { TIME_REGEX, PASSWORD_MIN_LENGTH } from "@/lib/constants";
+import { TIME_REGEX, PASSWORD_MIN_LENGTH, USER_ADMIN_SELECT } from "@/lib/constants";
 
 const createSchema = z.object({
   username: z.string().min(3).max(50),
@@ -33,22 +33,7 @@ export async function GET(request: NextRequest) {
       deletedAt: null,
       ...(actor.role === Role.SUPER_ADMIN ? {} : { role: { not: Role.SUPER_ADMIN } }),
     },
-    select: {
-      id: true,
-      username: true,
-      fullName: true,
-      email: true,
-      department: true,
-      role: true,
-      isActive: true,
-      workStartTime: true,
-      workEndTime: true,
-      lateGraceMinutes: true,
-      earlyLeaveGraceMinutes: true,
-      workMode: true,
-      allowedOffDaysPerMonth: true,
-      createdAt: true,
-    },
+    select: USER_ADMIN_SELECT,
     orderBy: { createdAt: "desc" },
   });
 
@@ -96,22 +81,7 @@ export async function POST(request: NextRequest) {
         allowedOffDaysPerMonth: payload.data.allowedOffDaysPerMonth,
         deletedAt: null,
       },
-      select: {
-        id: true,
-        username: true,
-        fullName: true,
-        email: true,
-        department: true,
-        role: true,
-        isActive: true,
-        workStartTime: true,
-        workEndTime: true,
-        lateGraceMinutes: true,
-        earlyLeaveGraceMinutes: true,
-        workMode: true,
-        allowedOffDaysPerMonth: true,
-        createdAt: true,
-      },
+      select: USER_ADMIN_SELECT,
     });
     return ok(user, { status: 201 });
   }
@@ -133,22 +103,7 @@ export async function POST(request: NextRequest) {
         workMode: payload.data.workMode,
         allowedOffDaysPerMonth: payload.data.allowedOffDaysPerMonth,
       },
-      select: {
-        id: true,
-        username: true,
-        fullName: true,
-        email: true,
-        department: true,
-        role: true,
-        isActive: true,
-        workStartTime: true,
-        workEndTime: true,
-        lateGraceMinutes: true,
-        earlyLeaveGraceMinutes: true,
-        workMode: true,
-        allowedOffDaysPerMonth: true,
-        createdAt: true,
-      },
+      select: USER_ADMIN_SELECT,
     })
     .catch(() => null);
 

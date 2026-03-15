@@ -7,7 +7,7 @@ import { validateCsrf } from "@/lib/csrf";
 import { prisma } from "@/lib/prisma";
 import { requireRoleRequest } from "@/lib/rbac";
 import { sanitizeUserForAudit } from "@/lib/audit";
-import { TIME_REGEX, PASSWORD_MIN_LENGTH } from "@/lib/constants";
+import { TIME_REGEX, PASSWORD_MIN_LENGTH, USER_ADMIN_SELECT } from "@/lib/constants";
 
 const updateSchema = z.object({
   fullName: z.string().min(1).max(100).optional(),
@@ -58,22 +58,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const updated = await prisma.user.update({
     where: { id },
     data,
-    select: {
-      id: true,
-      username: true,
-      fullName: true,
-      email: true,
-      department: true,
-      role: true,
-      isActive: true,
-      workStartTime: true,
-      workEndTime: true,
-      lateGraceMinutes: true,
-      earlyLeaveGraceMinutes: true,
-      workMode: true,
-      allowedOffDaysPerMonth: true,
-      createdAt: true,
-    },
+    select: USER_ADMIN_SELECT,
   });
 
   await prisma.auditLog.create({

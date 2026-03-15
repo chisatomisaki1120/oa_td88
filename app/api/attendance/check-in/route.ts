@@ -33,7 +33,27 @@ export async function POST(request: NextRequest) {
           updatedBy: user.id,
           warningFlagsJson: status === AttendanceStatus.LATE ? JSON.stringify(["LATE"]) : "[]",
         },
-        include: { breakSessions: true },
+        select: {
+          id: true,
+          workDate: true,
+          checkInAt: true,
+          checkOutAt: true,
+          status: true,
+          workedMinutes: true,
+          isOffDay: true,
+          isDeducted: true,
+          offReason: true,
+          warningFlagsJson: true,
+          breakSessions: {
+            select: {
+              id: true,
+              breakType: true,
+              startAt: true,
+              endAt: true,
+              durationMinutesComputed: true,
+            },
+          },
+        },
       });
     })
     .catch((e) => {

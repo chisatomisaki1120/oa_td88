@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     // Skip month lock for active shifts — employee already checked in (month was unlocked then)
     // This allows break operations for overnight shifts spanning month boundaries
 
-    const openBreak = await tx.breakSession.findFirst({ where: { attendanceDayId: today.id, endAt: null } });
+    const openBreak = await tx.breakSession.findFirst({ where: { attendanceDayId: today.id, endAt: null }, select: { id: true } });
     if (openBreak) throw new Error("BREAK_OPEN");
 
     return tx.breakSession.create({

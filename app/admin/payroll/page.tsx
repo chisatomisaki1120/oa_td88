@@ -4,14 +4,17 @@ import DashboardShell from "@/components/dashboard-shell";
 import AdminPayroll from "@/components/admin-payroll";
 import { requireRoleServer } from "@/lib/rbac";
 import { ADMIN_NAV_LINKS } from "@/lib/nav-links";
+import { buildMonthOptionsFromMonth, vnMonthString } from "@/lib/time";
 
 export default async function AdminPayrollPage() {
   const user = await requireRoleServer([Role.ADMIN, Role.SUPER_ADMIN]);
   if (!user) redirect("/login");
+  const initialMonth = vnMonthString();
+  const monthOptions = buildMonthOptionsFromMonth(initialMonth);
 
   return (
     <DashboardShell username={user.username} role={user.role} links={ADMIN_NAV_LINKS}>
-      <AdminPayroll />
+      <AdminPayroll initialMonth={initialMonth} monthOptions={monthOptions} />
     </DashboardShell>
   );
 }

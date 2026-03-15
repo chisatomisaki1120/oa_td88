@@ -3,12 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { apiJson } from "@/lib/client-api";
 import { ErrorMessage, EmptyState } from "@/components/ui-feedback";
-
-const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
-  const h = String(Math.floor(i / 2)).padStart(2, "0");
-  const m = i % 2 === 0 ? "00" : "30";
-  return `${h}:${m}`;
-});
+import { TIME_OPTIONS } from "@/lib/constants";
 
 type Shift = {
   id: string;
@@ -23,12 +18,16 @@ type User = {
   username: string;
 };
 
-export default function AdminShifts() {
+type Props = {
+  initialEffectiveFrom: string;
+};
+
+export default function AdminShifts({ initialEffectiveFrom }: Props) {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [error, setError] = useState("");
   const [form, setForm] = useState({ name: "", startTime: "08:00", endTime: "17:00", lateGraceMinutes: 5, earlyLeaveGraceMinutes: 5 });
-  const [assign, setAssign] = useState({ userId: "", shiftId: "", effectiveFrom: new Date().toISOString().slice(0, 10) });
+  const [assign, setAssign] = useState({ userId: "", shiftId: "", effectiveFrom: initialEffectiveFrom });
 
   async function load() {
     try {

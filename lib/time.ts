@@ -1,7 +1,7 @@
 export const VN_TIMEZONE = "Asia/Ho_Chi_Minh";
 
 function toParts(date: Date) {
-  const formatter = new Intl.DateTimeFormat("en-CA", {
+  const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: VN_TIMEZONE,
     year: "numeric",
     month: "2-digit",
@@ -10,8 +10,7 @@ function toParts(date: Date) {
     minute: "2-digit",
     second: "2-digit",
     hour12: false,
-  });
-  const parts = formatter.formatToParts(date);
+  }).formatToParts(date);
   const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "00";
   return {
     year: get("year"),
@@ -40,6 +39,7 @@ export function vnMinuteOfDay(date: Date = new Date()): number {
 
 export function parseHHMM(value: string): number {
   const [hour, minute] = value.split(":").map(Number);
+  if (isNaN(hour) || isNaN(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) return 0;
   return hour * 60 + minute;
 }
 
@@ -110,11 +110,20 @@ export function fmtMinutesToHours(minutes: number): string {
 const SYSTEM_START_YEAR = 2026;
 const SYSTEM_START_MONTH = 3;
 
-/** Build descending list of "YYYY-MM" strings from current month back to system start */
-export function buildMonthOptions(): string[] {
-  const now = new Date().toLocaleDateString("en-CA", { timeZone: VN_TIMEZONE });
-  const [cy, cm] = now.split("-").map(Number);
-  const currentKey = cy * 12 + cm;
+function parseYearMonth(value: string): { year: number; month: number } | null {
+  const match = value.match(/^(\d{4})-(\d{2})$/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) return null;
+  return { year, month };
+}
+
+export function buildMonthOptionsFromMonth(currentMonth: string): string[] {
+  const parsed = parseYearMonth(currentMonth);
+  if (!parsed) return [];
+
+  const currentKey = parsed.year * 12 + parsed.month;
   const startKey = SYSTEM_START_YEAR * 12 + SYSTEM_START_MONTH;
   const opts: string[] = [];
   for (let k = currentKey; k >= startKey; k--) {
@@ -125,12 +134,18 @@ export function buildMonthOptions(): string[] {
   return opts;
 }
 
+/** Build descending list of "YYYY-MM" strings from current month back to system start */
+export function buildMonthOptions(): string[] {
+  const currentMonth = currentMonthVn();
+  return buildMonthOptionsFromMonth(currentMonth);
+}
+
 /** Get current month string "YYYY-MM" in VN timezone */
 export function currentMonthVn(): string {
-  return new Date().toLocaleDateString("en-CA", { timeZone: VN_TIMEZONE }).slice(0, 7);
+  return vnMonthString();
 }
 
 /** Get current date string "YYYY-MM-DD" in VN timezone */
 export function currentDateVn(): string {
-  return new Date().toLocaleDateString("en-CA", { timeZone: VN_TIMEZONE });
+  return vnDateString();
 }

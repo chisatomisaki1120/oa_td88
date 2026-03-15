@@ -1,7 +1,8 @@
 export function getCsrfToken(): string {
   if (typeof document === "undefined") return "";
-  const part = document.cookie.split("; ").find((item) => item.startsWith("oa_csrf="));
-  return part ? decodeURIComponent(part.split("=")[1]) : "";
+  const match = document.cookie.match(/(?:^|; )oa_csrf=([^;]*)/);
+  if (!match) return "";
+  try { return decodeURIComponent(match[1]); } catch { return ""; }
 }
 
 async function refreshCsrfToken() {

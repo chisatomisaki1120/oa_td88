@@ -3,6 +3,9 @@ import { ok, fail } from "@/lib/api";
 import { destroySession, SESSION_COOKIE, sessionCookieOptions } from "@/lib/auth";
 import { validateCsrf } from "@/lib/csrf";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function POST(request: NextRequest) {
   if (!validateCsrf(request)) {
     return fail("Invalid CSRF token", 403);

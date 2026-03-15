@@ -28,7 +28,20 @@ export async function GET(request: NextRequest) {
   const actor = await requireRoleRequest(request, [Role.ADMIN, Role.SUPER_ADMIN]);
   if (!actor) return fail("Forbidden", 403);
 
-  const shifts = await prisma.shift.findMany({ orderBy: { createdAt: "desc" } });
+  const shifts = await prisma.shift.findMany({
+    select: {
+      id: true,
+      name: true,
+      startTime: true,
+      endTime: true,
+      lateGraceMinutes: true,
+      earlyLeaveGraceMinutes: true,
+      breakPolicyJson: true,
+      isActive: true,
+      createdAt: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
   return ok(shifts);
 }
 

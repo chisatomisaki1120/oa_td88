@@ -32,10 +32,14 @@ function fmtDateRange(dates: string[]) {
   return `${sorted[0]} → ${sorted[sorted.length - 1]}`;
 }
 
-export default function AdminLeaveRequests() {
+type Props = {
+  initialYear: number;
+};
+
+export default function AdminLeaveRequests({ initialYear }: Props) {
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
   const [filterStatus, setFilterStatus] = useState("ALL");
-  const [filterYear, setFilterYear] = useState(new Date().getFullYear());
+  const [filterYear, setFilterYear] = useState(initialYear);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [rejectId, setRejectId] = useState<string | null>(null);
@@ -94,7 +98,7 @@ export default function AdminLeaveRequests() {
         </select>
         <select value={filterYear} onChange={(e) => setFilterYear(Number(e.target.value))}>
           {[0, 1, 2].map((d) => {
-            const y = new Date().getFullYear() - d;
+            const y = initialYear - d;
             return (
               <option key={y} value={y}>
                 {y}

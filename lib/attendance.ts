@@ -91,36 +91,33 @@ function getBreakPolicy(schedule: WorkSchedule | null): BreakPolicy {
   }
 }
 
-function calculateWarnings(breaks: BreakSession[], policy: BreakPolicy): string[] {
+function calculateWarnings(breaks: Pick<BreakSession, "breakType" | "durationMinutesComputed">[], policy: BreakPolicy): string[] {
   const warnings: string[] = [];
-  const wcs = breaks.filter((b) => b.breakType === BreakType.WC);
-  const smokes = breaks.filter((b) => b.breakType === BreakType.SMOKE);
-  const meals = breaks.filter((b) => b.breakType === BreakType.MEAL);
+  let wcCount = 0, smokeCount = 0, mealCount = 0;
+  let wcOverDuration = false, smokeOverDuration = false, mealOverDuration = false;
 
-  if (wcs.length > policy.wc.maxCount) warnings.push("WC_COUNT_EXCEEDED");
-  if (smokes.length > policy.smoke.maxCount) warnings.push("SMOKE_COUNT_EXCEEDED");
-  if (meals.length > policy.meal.maxCount) warnings.push("MEAL_COUNT_EXCEEDED");
+  for (const b of breaks) {
+    const dur = b.durationMinutesComputed ?? 0;
+    if (b.breakType === BreakType.WC) {
+      wcCount++;
+      if (dur > policy.wc.maxMinutesEach) wcOverDuration = true;
+    } else if (b.breakType === BreakType.SMOKE) {
+      smokeCount++;
+      if (dur > policy.smoke.maxMinutesEach) smokeOverDuration = true;
+    } else if (b.breakType === BreakType.MEAL) {
+      mealCount++;
+      if (dur > policy.meal.maxMinutesEach) mealOverDuration = true;
+    }
+  }
 
-  if (wcs.some((b) => (b.durationMinutesComputed ?? 0) > policy.wc.maxMinutesEach)) {
-    warnings.push("WC_DURATION_EXCEEDED");
-  }
-  if (smokes.some((b) => (b.durationMinutesComputed ?? 0) > policy.smoke.maxMinutesEach)) {
-    warnings.push("SMOKE_DURATION_EXCEEDED");
-  }
-  if (meals.some((b) => (b.durationMinutesComputed ?? 0) > policy.meal.maxMinutesEach)) {
-    warnings.push("MEAL_DURATION_EXCEEDED");
-  }
+  if (wcCount > policy.wc.maxCount) warnings.push("WC_COUNT_EXCEEDED");
+  if (smokeCount > policy.smoke.maxCount) warnings.push("SMOKE_COUNT_EXCEEDED");
+  if (mealCount > policy.meal.maxCount) warnings.push("MEAL_COUNT_EXCEEDED");
+  if (wcOverDuration) warnings.push("WC_DURATION_EXCEEDED");
+  if (smokeOverDuration) warnings.push("SMOKE_DURATION_EXCEEDED");
+  if (mealOverDuration) warnings.push("MEAL_DURATION_EXCEEDED");
 
   return warnings;
-}
-
-export function parseWarnings(raw: string | null | undefined): string[] {
-  if (!raw) return [];
-  try {
-    return JSON.parse(raw) as string[];
-  } catch {
-    return [];
-  }
 }
 
 export function computeCheckInStatus(schedule: WorkSchedule | null, checkInAt: Date): AttendanceStatus {
@@ -213,6 +210,7 @@ export async function recalculateAttendanceDay(
 
   const breaks = await tx.breakSession.findMany({
     where: { attendanceDayId: attendanceDay.id, endAt: { not: null } },
+    select: { breakType: true, durationMinutesComputed: true },
     orderBy: { startAt: "asc" },
   });
 

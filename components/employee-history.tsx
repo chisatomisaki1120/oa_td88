@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiJson } from "@/lib/client-api";
 import { attendanceStatusLabel, parseWarnings } from "@/lib/display-labels";
-import { fmtDateTime, currentMonthVn } from "@/lib/time";
+import { fmtDateTime } from "@/lib/time";
 import { ErrorMessage, EmptyState } from "@/components/ui-feedback";
 
 type Day = {
@@ -20,8 +20,12 @@ type AttendanceMeResponse = {
   items: Day[];
 };
 
-export default function EmployeeHistory() {
-  const [month, setMonth] = useState(currentMonthVn);
+type Props = {
+  initialMonth: string;
+};
+
+export default function EmployeeHistory({ initialMonth }: Props) {
+  const [month, setMonth] = useState(initialMonth);
   const [rows, setRows] = useState<Day[]>([]);
   const [error, setError] = useState("");
 

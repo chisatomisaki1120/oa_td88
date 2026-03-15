@@ -3,12 +3,15 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { ok, fail } from "@/lib/api";
 import { createSession, SESSION_COOKIE, sessionCookieOptions, verifyPassword } from "@/lib/auth";
-import { SESSION_DAYS } from "@/lib/constants";
+import { SESSION_DAYS, CSRF_COOKIE_OPTIONS } from "@/lib/constants";
 import { getLoginSecurityConfig } from "@/lib/login-security-config";
 import { prisma } from "@/lib/prisma";
 import { consumeLoginAttempt } from "@/lib/rate-limit";
 import { createCsrfToken, CSRF_COOKIE } from "@/lib/csrf";
 import { parseWorkDateToUtc, vnDateString } from "@/lib/time";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const loginSchema = z.object({
   username: z.string().min(1),
@@ -54,11 +57,13 @@ function getDeviceKey(
   return createHash("sha256").update(stablePayload).digest("hex");
 }
 
-function isMobilePhoneUserAgent(userAgent: string): boolean {
-  const ua = userAgent.toLowerCase();
-  const isTablet = /ipad|tablet|playbook|silk/.test(ua) || (/android/.test(ua) && !/mobile/.test(ua));
-  if (isTablet) return false;
-  return /iphone|ipod|android.*mobile|windows phone|blackberry|opera mini|mobile/.test(ua);
+const TABLET_RE = /ipad|tablet|playbook|silk/;
+const MOBILE_RE = /iphone|ipod|android.*mobile|windows phone|blackberry|opera mini|mobile/;
+
+function isMobileUA(ua: string): boolean {
+  const lower = ua.toLowerCase();
+  if (TABLET_RE.test(lower) || (/android/.test(lower) && !MOBILE_RE.test(lower))) return false;
+  return MOBILE_RE.test(lower);
 }
 
 function isMobilePhoneByClientSignal(
@@ -74,27 +79,14 @@ function isMobilePhoneByClientSignal(
     | undefined,
 ): boolean {
   if (!signal) return false;
-
   if (signal.userAgentDataMobile === true) return true;
-
-  const ua = (signal.userAgent ?? "").toLowerCase();
-  if (ua) {
-    const isTablet = /ipad|tablet|playbook|silk/.test(ua) || (/android/.test(ua) && !/mobile/.test(ua));
-    if (!isTablet && /iphone|ipod|android.*mobile|windows phone|blackberry|opera mini|mobile/.test(ua)) {
-      return true;
-    }
-  }
-
-  // iPhone "Request Desktop Website" often reports MacIntel but still has touch points.
-  if ((signal.platform ?? "").toLowerCase() === "macintel" && (signal.maxTouchPoints ?? 0) > 1) {
-    return true;
-  }
-
+  if (signal.userAgent && isMobileUA(signal.userAgent)) return true;
+  if ((signal.platform ?? "").toLowerCase() === "macintel" && (signal.maxTouchPoints ?? 0) > 1) return true;
   return false;
 }
 
 function isMobilePhoneRequest(request: NextRequest, userAgent: string, clientDevice: z.infer<typeof loginSchema>["clientDevice"]): boolean {
-  if (isMobilePhoneUserAgent(userAgent)) return true;
+  if (isMobileUA(userAgent)) return true;
 
   const chMobile = request.headers.get("sec-ch-ua-mobile");
   if (chMobile === "?1") return true;
@@ -165,6 +157,15 @@ export async function POST(request: NextRequest) {
 
   const user = await prisma.user.findUnique({
     where: { username: parsed.data.username },
+    select: {
+      id: true,
+      username: true,
+      fullName: true,
+      role: true,
+      department: true,
+      passwordHash: true,
+      isActive: true,
+    },
   });
 
   if (!user || !user.isActive) {
@@ -198,7 +199,7 @@ export async function POST(request: NextRequest) {
   const activeSessionCutoff = new Date(now.getTime() - activeSessionWindowMinutes * 60 * 1000);
 
   if (Math.random() < 0.05) {
-    await prisma.authSession.deleteMany({ where: { expiresAt: { lte: now } } });
+    prisma.authSession.deleteMany({ where: { expiresAt: { lte: now } } }).catch(() => undefined);
   }
 
   if (securityConfig.enforceSingleDevicePerAccount) {
@@ -318,13 +319,7 @@ export async function POST(request: NextRequest) {
 
   const sessionDays = rememberMe ? SESSION_DAYS : 1;
   response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions(new Date(Date.now() + sessionDays * 24 * 60 * 60 * 1000)));
-  response.cookies.set(CSRF_COOKIE, createCsrfToken(), {
-    httpOnly: false,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 30 * 24 * 60 * 60,
-  });
+  response.cookies.set(CSRF_COOKIE, createCsrfToken(), CSRF_COOKIE_OPTIONS);
 
   return response;
 }

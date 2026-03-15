@@ -33,3 +33,37 @@ export const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 /** Password minimum length */
 export const PASSWORD_MIN_LENGTH = 6;
+
+/** Reusable Prisma select for admin user list/detail responses */
+export const USER_ADMIN_SELECT = {
+  id: true,
+  username: true,
+  fullName: true,
+  email: true,
+  department: true,
+  role: true,
+  isActive: true,
+  workStartTime: true,
+  workEndTime: true,
+  lateGraceMinutes: true,
+  earlyLeaveGraceMinutes: true,
+  workMode: true,
+  allowedOffDaysPerMonth: true,
+  createdAt: true,
+} as const;
+
+/** CSRF cookie options (shared between login and /auth/me) */
+export const CSRF_COOKIE_OPTIONS = {
+  httpOnly: false,
+  sameSite: "lax" as const,
+  secure: process.env.NODE_ENV === "production",
+  path: "/",
+  maxAge: 30 * 24 * 60 * 60,
+};
+
+/** Half-hour time slots for shift/work-time selectors */
+export const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
+  const h = String(Math.floor(i / 2)).padStart(2, "0");
+  const m = i % 2 === 0 ? "00" : "30";
+  return `${h}:${m}`;
+});

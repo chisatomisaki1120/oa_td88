@@ -105,9 +105,10 @@ async function getSessionUserFromToken(token: string): Promise<SessionUser | nul
     return null;
   }
 
+  // Fire-and-forget session touch — non-blocking to avoid latency on every request
   const now = new Date();
   if (!session.lastSeenAt || now.getTime() - session.lastSeenAt.getTime() >= SESSION_TOUCH_INTERVAL_MS) {
-    await prisma.authSession
+    prisma.authSession
       .update({
         where: { id: session.id },
         data: { lastSeenAt: now },

@@ -38,6 +38,7 @@ export async function DELETE(request: NextRequest) {
   // Only allow revoking own sessions
   const session = await prisma.authSession.findFirst({
     where: { id: sessionId, userId: user.id },
+    select: { id: true },
   });
   if (!session) return fail("Phiên không tồn tại", 404);
 

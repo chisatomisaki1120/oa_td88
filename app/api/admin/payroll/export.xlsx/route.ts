@@ -5,7 +5,7 @@ import { fail } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { requireRoleRequest } from "@/lib/rbac";
 import { parseHHMM, fmtMinutesToHours } from "@/lib/time";
-import { parseWarnings } from "@/lib/attendance";
+import { parseWarnings } from "@/lib/display-labels";
 
 export async function GET(request: NextRequest) {
   const actor = await requireRoleRequest(request, [Role.ADMIN, Role.SUPER_ADMIN]);

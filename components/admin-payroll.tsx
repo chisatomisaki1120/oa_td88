@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { apiJson } from "@/lib/client-api";
-import { buildMonthOptions, currentMonthVn } from "@/lib/time";
 import { ErrorMessage, EmptyState } from "@/components/ui-feedback";
 
 type PayrollRow = {
@@ -22,15 +21,15 @@ type PayrollRow = {
   allowedOff: number;
   remainingOff: number;
 };
+type Props = {
+  initialMonth: string;
+  monthOptions: string[];
+};
 
-
-
-export default function AdminPayroll() {
-  const [month, setMonth] = useState(currentMonthVn);
+export default function AdminPayroll({ initialMonth, monthOptions }: Props) {
+  const [month, setMonth] = useState(initialMonth);
   const [rows, setRows] = useState<PayrollRow[]>([]);
   const [error, setError] = useState("");
-
-  const monthOptions = useMemo(() => buildMonthOptions(), []);
 
   async function load() {
     setError("");

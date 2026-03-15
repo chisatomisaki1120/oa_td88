@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
     const openBreak = await tx.breakSession.findFirst({
       where: { attendanceDayId: today.id, endAt: null },
       orderBy: { startAt: "desc" },
+      select: { id: true, startAt: true },
     });
     if (!openBreak) throw new Error("NO_OPEN_BREAK");
 
